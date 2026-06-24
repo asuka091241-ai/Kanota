@@ -6,6 +6,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveData: (data) => ipcRenderer.invoke('save-data', data),
   loadSettings: () => ipcRenderer.invoke('load-settings'),
   saveSettings: (settings) => ipcRenderer.invoke('save-settings', settings),
+  getDataPath: () => ipcRenderer.invoke('get-data-path'),
+  setDataPath: (newPath, migrate) => ipcRenderer.invoke('set-data-path', newPath, migrate),
+  pickFolder: () => ipcRenderer.invoke('pick-folder'),
   loadTrash: () => ipcRenderer.invoke('load-trash'),
   saveTrash: (trash) => ipcRenderer.invoke('save-trash', trash),
 

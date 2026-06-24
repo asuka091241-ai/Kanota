@@ -4,6 +4,10 @@ dist/
 dist-new/
 dist-exe/
 release/
+data/
 *.exe
 *.lnk
+*.zip
+release-body.json
+upload-result.txt
 .env

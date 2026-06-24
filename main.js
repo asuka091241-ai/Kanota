@@ -2,9 +2,45 @@ const { app, BrowserWindow, ipcMain, Menu, screen, Tray, dialog, nativeImage } =
 const path = require('path');
 const fs = require('fs');
 
-const DATA_FILE = path.join(app.getPath('userData'), 'kanban-data.json');
-const SETTINGS_FILE = path.join(app.getPath('userData'), 'kanban-settings.json');
-const TRASH_FILE = path.join(app.getPath('userData'), 'kanban-trash.json');
+const getDefaultDataDir = () => {
+  const exeDir = path.dirname(app.getPath('exe'));
+  // Dev mode: electron.exe is deep inside node_modules, fall back to project root
+  if (exeDir.includes('node_modules')) return path.join(__dirname, 'data');
+  // Packaged: data folder next to Kanota.exe
+  return path.join(exeDir, 'data');
+};
+
+const DEFAULT_DATA_DIR = getDefaultDataDir();
+let DATA_DIR = DEFAULT_DATA_DIR;
+
+// Settings file always lives in default data dir (bootstrap)
+const SETTINGS_FILE = path.join(DEFAULT_DATA_DIR, 'kanban-settings.json');
+
+function ensureDir(dir) { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }); }
+ensureDir(DEFAULT_DATA_DIR);
+
+// Data/trash files follow DATA_DIR (which may be overridden)
+function dataFile() { return path.join(DATA_DIR, 'kanban-data.json'); }
+function trashFile() { return path.join(DATA_DIR, 'kanban-trash.json'); }
+
+// Bootstrap: load settings to get custom dataPath
+const _bootSettings = loadJSON(SETTINGS_FILE, {});
+if (_bootSettings.dataPath && _bootSettings.dataPath !== DEFAULT_DATA_DIR) {
+  DATA_DIR = _bootSettings.dataPath;
+  ensureDir(DATA_DIR);
+}
+// One-time: migrate old AppData data to new default location
+const OLD_DATA_DIR = app.getPath('userData');
+if (fs.existsSync(path.join(OLD_DATA_DIR, 'kanban-data.json')) && !fs.existsSync(dataFile())) {
+  ensureDir(DATA_DIR);
+  for (const f of ['kanban-data.json', 'kanban-trash.json', 'kanban-settings.json']) {
+    const src = path.join(OLD_DATA_DIR, f);
+    if (fs.existsSync(src)) {
+      const dst = f === 'kanban-settings.json' ? SETTINGS_FILE : (f === 'kanban-data.json' ? dataFile() : trashFile());
+      try { fs.copyFileSync(src, dst); } catch (_) {}
+    }
+  }
+}
 
 let mainWindow = null;
 let tray = null;
@@ -19,14 +55,14 @@ function saveJSON(file, data) {
 }
 
 function readData() {
-  return loadJSON(DATA_FILE, { todo: [], inProgress: [], done: [], _stickies: [] });
+  return loadJSON(dataFile(), { todo: [], inProgress: [], done: [], _stickies: [] });
 }
 function writeData(data) {
-  return saveJSON(DATA_FILE, data);
+  return saveJSON(dataFile(), data);
 }
 
 function addToTrash(card, sourceCol) {
-  const trash = loadJSON(TRASH_FILE, []);
+  const trash = loadJSON(trashFile(), []);
   trash.push({
     id: card.id,
     title: card.title || '',
@@ -37,7 +73,7 @@ function addToTrash(card, sourceCol) {
     _refId: card._refId || null,
     closedAt: new Date().toISOString()
   });
-  saveJSON(TRASH_FILE, trash);
+  saveJSON(trashFile(), trash);
   return trash;
 }
 
@@ -144,8 +180,49 @@ ipcMain.handle('load-data', () => readData());
 ipcMain.handle('save-data', (_, data) => writeData(data));
 ipcMain.handle('load-settings', () => loadJSON(SETTINGS_FILE, { theme: 'light', alwaysOnTop: false }));
 ipcMain.handle('save-settings', (_, s) => saveJSON(SETTINGS_FILE, s));
-ipcMain.handle('load-trash', () => loadJSON(TRASH_FILE, []));
-ipcMain.handle('save-trash', (_, d) => saveJSON(TRASH_FILE, d));
+
+// ===== Data Path =====
+ipcMain.handle('get-data-path', () => ({ current: DATA_DIR, default: DEFAULT_DATA_DIR }));
+ipcMain.handle('set-data-path', async (_, newPath, migrate) => {
+  if (!newPath || newPath === DATA_DIR) return { ok: true, path: DATA_DIR };
+  const targetDir = path.resolve(newPath);
+  if (targetDir === DEFAULT_DATA_DIR) {
+    // Resetting to default — migrate back
+    if (migrate && fs.existsSync(dataFile())) {
+      const srcDir = DATA_DIR;
+      DATA_DIR = DEFAULT_DATA_DIR;
+      ensureDir(DATA_DIR);
+      try { fs.copyFileSync(path.join(srcDir, 'kanban-data.json'), dataFile()); } catch (_) {}
+      try { fs.copyFileSync(path.join(srcDir, 'kanban-trash.json'), trashFile()); } catch (_) {}
+    } else {
+      DATA_DIR = DEFAULT_DATA_DIR;
+      ensureDir(DATA_DIR);
+    }
+  } else {
+    ensureDir(targetDir);
+    if (migrate && fs.existsSync(dataFile())) {
+      try { fs.copyFileSync(dataFile(), path.join(targetDir, 'kanban-data.json')); } catch (_) {}
+      try { fs.copyFileSync(trashFile(), path.join(targetDir, 'kanban-trash.json')); } catch (_) {}
+    }
+    DATA_DIR = targetDir;
+  }
+  // Persist the setting
+  const s = loadJSON(SETTINGS_FILE, {});
+  s.dataPath = DATA_DIR;
+  saveJSON(SETTINGS_FILE, s);
+  return { ok: true, path: DATA_DIR };
+});
+
+ipcMain.handle('pick-folder', async () => {
+  if (!mainWindow || mainWindow.isDestroyed()) return null;
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory'],
+    title: '选择数据存储文件夹',
+  });
+  return result.canceled ? null : result.filePaths[0];
+});
+ipcMain.handle('load-trash', () => loadJSON(trashFile(), []));
+ipcMain.handle('save-trash', (_, d) => saveJSON(trashFile(), d));
 
 // ===== Drag out =====
 let dragPollTimer = null;

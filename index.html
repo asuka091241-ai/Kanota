@@ -399,15 +399,20 @@ body{font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;backgroun
       </div>
       <div class="set-group">
         <h3>数据</h3>
-        <div class="set-acts">
+        <div class="set-row" style="flex-direction:column;align-items:stretch;gap:6px">
+          <label>存储位置</label>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input id="dataPathInput" readonly style="flex:1;height:30px;border:1px solid rgba(0,0,0,0.12);border-radius:6px;padding:0 10px;font-size:11px;background:rgba(0,0,0,0.02);cursor:default;font-family:inherit;color:var(--text2);min-width:0" spellcheck="false">
+            <button id="btnPickPath" style="height:30px;padding:0 10px;border:1px solid rgba(0,0,0,0.12);border-radius:6px;background:transparent;cursor:pointer;font-size:11px;white-space:nowrap;color:var(--text1);font-family:inherit">选择...</button>
+            <button id="btnResetPath" style="height:30px;padding:0 8px;border:1px solid rgba(0,0,0,0.12);border-radius:6px;background:transparent;cursor:pointer;font-size:11px;white-space:nowrap;color:var(--text2);font-family:inherit">默认</button>
+          </div>
+          <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3);cursor:pointer"><input type="checkbox" id="chkMigrate" checked> 迁移已有数据到新位置</label>
+        </div>
+        <div class="set-acts" style="margin-top:10px">
           <button id="btnExport">导出 JSON</button>
           <button id="btnImport">导入 JSON</button>
           <button id="btnClear" style="color:var(--danger);border-color:var(--danger)">清空所有数据</button>
         </div>
-      </div>
-      <div class="set-group">
-        <h3>关于</h3>
-        <p style="color:var(--text2);font-size:13px">Kanota v3.0 · Electron · 单窗口架构 · 数据本地存储</p>
       </div>
     </div>
   </main>
@@ -1314,6 +1319,40 @@ function bindSettings() {
     }
     await window.electronAPI.saveSettings(settings);
   };
+
+  // Data path
+  (async () => {
+    const info = await window.electronAPI.getDataPath();
+    const input = document.getElementById('dataPathInput');
+    input.value = info.current;
+    input.title = info.current;
+
+    const doSetPath = async (newPath) => {
+      if (!newPath || newPath === info.current) return;
+      const migrate = document.getElementById('chkMigrate').checked;
+      const result = await window.electronAPI.setDataPath(newPath, migrate);
+      if (result.ok) {
+        input.value = result.path;
+        input.title = result.path;
+        // Reload data from new location
+        data = await window.electronAPI.loadData();
+        migrateData();
+        trash = await window.electronAPI.loadTrash();
+        renderAll();
+        alert((migrate ? '数据已迁移到：' : '数据位置已更改为：') + '\n' + result.path);
+      }
+    };
+
+    document.getElementById('btnPickPath').onclick = async () => {
+      const folder = await window.electronAPI.pickFolder();
+      if (folder) await doSetPath(folder);
+    };
+
+    document.getElementById('btnResetPath').onclick = async () => {
+      if (info.current === info.default) return;
+      await doSetPath(info.default);
+    };
+  })();
 
   // Data export - copy to clipboard with feedback
   document.getElementById('btnExport').onclick = () => {
