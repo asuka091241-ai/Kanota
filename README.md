@@ -18,7 +18,7 @@
 
 ### 方式一：直接下载运行
 
-1. 打开 [Releases](https://github.com/asuka091241-ai/-/releases) 页面
+1. 打开 [Releases](https://github.com/asuka091241-ai/Kanota/releases) 页面
 2. 下载最新的 `Kanota.exe`（便携版，无需安装）
 3. 双击运行即可
 
@@ -28,8 +28,8 @@
 
 ```bash
 # 1. 克隆仓库
-git clone https://github.com/asuka091241-ai/-.git
-cd -
+git clone https://github.com/asuka091241-ai/Kanota.git
+cd Kanota
 
 # 2. 安装依赖
 npm install
