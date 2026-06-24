@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onStickyStatusChanged2: (callback) => ipcRenderer.on('sticky:statusChanged', (_, cardId, newStatus) => callback(cardId, newStatus)),
   onKanbanCardDeleted2: (callback) => ipcRenderer.on('kanban:cardDeleted', (_, cardId, col) => callback(cardId, col)),
   onStickyColorChanged2: (callback) => ipcRenderer.on('sticky:colorChanged', (_, cardId, color) => callback(cardId, color)),
+  onShowCloseDialog: (callback) => ipcRenderer.on('show-close-dialog', () => callback()),
 
   onKanbanOpenDetail: (callback) => ipcRenderer.on('kanban:openCardDetail', (_, cardId, col) => callback(cardId, col)),
 

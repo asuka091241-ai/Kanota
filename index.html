@@ -259,6 +259,8 @@ body{font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;backgroun
 [data-theme="dark"] .dlg-btn:hover{background:#3a3a3e}
 [data-theme="dark"] .dlg-cancel{background:transparent;color:#777}
 [data-theme="dark"] .dlg-cancel:hover{color:#aaa}
+.dlg-remember{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px;cursor:pointer;font-size:12px;color:var(--text2,#888);user-select:none}
+.dlg-remember input{width:16px;height:16px;cursor:pointer;accent-color:var(--accent)}
 
 /* ===== Responsive ===== */
 @media(max-width:700px){.sidebar{width:52px}.side-item span:not(.side-ico){display:none}.side-label{display:none}.board{flex-direction:column}.column{max-width:none}.dash-grid{grid-template-columns:1fr}.dash-qaq{grid-template-columns:1fr}.kanban-page{height:auto}.page{padding:16px}}
@@ -392,6 +394,10 @@ body{font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;backgroun
         <div class="set-row"><div><label>窗口置顶</label><sub>保持在其他窗口之上</sub></div><label class="toggle"><input type="checkbox" id="togPin"><span class="slider"></span></label></div>
       </div>
       <div class="set-group">
+        <h3>行为</h3>
+        <div class="set-row"><div><label>记住关闭选择</label><sub>点击关闭时直接执行上次选择，不再弹窗询问</sub></div><label class="toggle"><input type="checkbox" id="togRememberClose"><span class="slider"></span></label></div>
+      </div>
+      <div class="set-group">
         <h3>数据</h3>
         <div class="set-acts">
           <button id="btnExport">导出 JSON</button>
@@ -498,18 +504,66 @@ function bindTitlebar() {
   document.getElementById('btnMin').onclick = () => window.electronAPI.minimize();
   document.getElementById('btnMax').onclick = () => window.electronAPI.maximize();
   document.getElementById('btnClose').onclick = () => {
+    // If user chose "remember", skip dialog and auto-execute
+    if (settings._rememberClose) {
+      if (settings._rememberChoice === 'quit') {
+        window.electronAPI.quitApp();
+      } else {
+        // default: minimize to tray
+        window.electronAPI.hideToTray();
+      }
+      return;
+    }
     document.getElementById('closeDlgBackdrop').style.display = 'flex';
   };
 
   // Close dialog buttons
-  document.getElementById('dlgTray').onclick = () => window.electronAPI.hideToTray();
-  document.getElementById('dlgQuit').onclick = () => window.electronAPI.quitApp();
+  document.getElementById('dlgTray').onclick = () => {
+    if (document.getElementById('dlgRemember').checked) {
+      settings._rememberClose = true;
+      settings._rememberChoice = 'tray';
+      window.electronAPI.saveSettings(settings);
+      document.getElementById('togRememberClose').checked = true;
+    }
+    // Hide dialog immediately (fix: dialog was staying visible after tray)
+    document.getElementById('closeDlgBackdrop').style.display = 'none';
+    window.electronAPI.hideToTray();
+  };
+  document.getElementById('dlgQuit').onclick = () => {
+    if (document.getElementById('dlgRemember').checked) {
+      settings._rememberClose = true;
+      settings._rememberChoice = 'quit';
+      window.electronAPI.saveSettings(settings);
+      document.getElementById('togRememberClose').checked = true;
+    }
+    document.getElementById('closeDlgBackdrop').style.display = 'none';
+    window.electronAPI.quitApp();
+  };
   document.getElementById('dlgCancel').onclick = () => {
+    document.getElementById('dlgRemember').checked = false;
     document.getElementById('closeDlgBackdrop').style.display = 'none';
   };
   document.getElementById('closeDlgBackdrop').onclick = (e) => {
-    if (e.target === e.currentTarget) document.getElementById('closeDlgBackdrop').style.display = 'none';
+    if (e.target === e.currentTarget) {
+      document.getElementById('dlgRemember').checked = false;
+      document.getElementById('closeDlgBackdrop').style.display = 'none';
+    }
   };
+
+  // Also listen for show-close-dialog from main process (e.g. app close event)
+  if (window.electronAPI.onShowCloseDialog) {
+    window.electronAPI.onShowCloseDialog(() => {
+      if (settings._rememberClose) {
+        if (settings._rememberChoice === 'quit') {
+          window.electronAPI.quitApp();
+        } else {
+          window.electronAPI.hideToTray();
+        }
+        return;
+      }
+      document.getElementById('closeDlgBackdrop').style.display = 'flex';
+    });
+  }
 }
 
 // ===== Sidebar =====
@@ -1240,10 +1294,46 @@ function bindSettings() {
     await window.electronAPI.setAlwaysOnTop(settings.alwaysOnTop);
     await window.electronAPI.saveSettings(settings);
   };
+
+  // Remember close choice
+  const togRc = document.getElementById('togRememberClose');
+  togRc.checked = !!settings._rememberClose;
+  togRc.onchange = async e => {
+    if (e.target.checked) {
+      settings._rememberClose = true;
+      // If no previous choice, default to tray
+      if (!settings._rememberChoice) settings._rememberChoice = 'tray';
+    } else {
+      settings._rememberClose = false;
+      delete settings._rememberChoice;
+    }
+    await window.electronAPI.saveSettings(settings);
+  };
+
+  // Data export - copy to clipboard with feedback
   document.getElementById('btnExport').onclick = () => {
     const j = JSON.stringify({ data, settings }, null, 2);
-    navigator.clipboard.writeText(j).catch(() => {});
+    navigator.clipboard.writeText(j).then(() => {
+      const btn = document.getElementById('btnExport');
+      const old = btn.textContent;
+      btn.textContent = '已复制到剪贴板';
+      btn.style.borderColor = 'var(--accent)';
+      btn.style.color = 'var(--accent)';
+      setTimeout(() => { btn.textContent = old; btn.style.borderColor = ''; btn.style.color = ''; }, 2000);
+    }).catch(() => {
+      // Fallback: show in a textarea for manual copy
+      const ta = document.createElement('textarea');
+      ta.value = j;
+      ta.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:600px;height:400px;z-index:99999;font:12px monospace;background:#fff;color:#000;border:2px solid var(--accent);border-radius:8px;padding:12px';
+      ta.readOnly = true;
+      ta.onblur = () => ta.remove();
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+    });
   };
+
+  // Data import
   document.getElementById('btnImport').onclick = () => {
     const j = prompt('粘贴 JSON:');
     if (!j) return;
@@ -1253,14 +1343,21 @@ function bindSettings() {
       if (im.settings) {
         settings = im.settings;
         applyTheme(settings.theme);
-        document.getElementById('togPin').checked = settings.alwaysOnTop;
+        document.getElementById('togPin').checked = !!settings.alwaysOnTop;
+        document.getElementById('togRememberClose').checked = !!settings._rememberClose;
       }
       renderAll();
       save();
       window.electronAPI.saveSettings(settings);
-    } catch {}
+      alert('数据已成功导入');
+    } catch (err) {
+      alert('JSON 格式错误，请检查后重试');
+    }
   };
+
+  // Clear all data
   document.getElementById('btnClear').onclick = async () => {
+    if (!confirm('确定要清空所有数据吗？此操作不可恢复。')) return;
     for (const s of data._stickies || []) {
       await window.electronAPI.uiRemoveSticky(s.id);
     }
@@ -1298,6 +1395,10 @@ init();
         <span>取消</span>
       </button>
     </div>
+    <label class="dlg-remember" id="dlgRememberLabel">
+      <input type="checkbox" id="dlgRemember">
+      <span>记住我的选择，下次不再询问</span>
+    </label>
   </div>
 </div>
 
