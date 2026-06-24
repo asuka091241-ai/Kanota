@@ -381,6 +381,22 @@ ipcMain.handle('sticky:getWindowState', (_, id) => {
   return { exists: true, destroyed: win.isDestroyed() };
 });
 
+// ===== Pomodoro Time Sync =====
+ipcMain.on('sticky:addPomoTime', (_, cardId, ms) => {
+  const data = readData();
+  for (const col of ['todo', 'inProgress', 'done']) {
+    const card = (data[col] || []).find(c => c.id === cardId);
+    if (card) {
+      card._timerElapsed = (card._timerElapsed || 0) + ms;
+      writeData(data);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        try { mainWindow.webContents.send('sticky:addPomoTimeResult', cardId, card._timerElapsed); } catch (_) {}
+      }
+      break;
+    }
+  }
+});
+
 // ===== Legacy IPC (keep for index.html compatibility) =====
 ipcMain.handle('delete-sticky', (_, stickyId) => {
   const data = readData();

@@ -12,4 +12,5 @@ contextBridge.exposeInMainWorld('stickyAPI', {
   updateColor: (id, color) => ipcRenderer.invoke('sticky:updateColor', id, color),
   removeFromDesktop: (id) => ipcRenderer.invoke('sticky:removeFromDesktop', id),
   showContextMenu: (payload) => ipcRenderer.invoke('sticky:showContextMenu', payload),
+  addPomoTime: (cardId, ms) => ipcRenderer.send('sticky:addPomoTime', cardId, ms),
 });

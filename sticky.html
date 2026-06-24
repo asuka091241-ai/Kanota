@@ -18,6 +18,13 @@ body{font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;font-size
 .btn{width:24px;height:24px;border:none;background:transparent;border-radius:4px;cursor:pointer;font-size:12px;color:rgba(0,0,0,0.4);display:grid;place-items:center;transition:background .12s}
 .btn:hover{background:rgba(0,0,0,0.08)}
 .btn.on{color:#f59e0b}
+.pomo{position:relative}
+.pomo-btn{width:24px;height:24px;border:none;background:transparent;border-radius:4px;cursor:pointer;font-size:13px;display:grid;place-items:center;transition:background .12s}
+.pomo-btn:hover{background:rgba(0,0,0,0.08)}
+.pomo-btn.active{background:rgba(239,68,68,0.15);color:#ef4444;animation:tmPulse 1s ease-in-out infinite}
+@keyframes tmPulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.3)}50%{box-shadow:0 0 0 4px rgba(239,68,68,0)}}
+.pomo-display{font-size:10px;font-weight:700;color:#ef4444;margin-right:4px;font-variant-numeric:tabular-nums;min-width:36px;text-align:right}
+.pomo-display.done{color:#10b981}
 .flow{font-size:11px;font-weight:600;padding:0 7px;width:auto;color:var(--fc,#f59e0b);background:rgba(0,0,0,0.05)}
 .flow:hover{background:rgba(0,0,0,0.1)}
 .content{flex:1;display:flex;flex-direction:column;overflow:hidden}
@@ -62,6 +69,8 @@ body{font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;font-size
       <span class="bar-title" id="barTitle">无标题</span>
     </div>
     <div class="bar-r">
+      <span class="pomo-display" id="pomoDisplay" style="display:none">25:00</span>
+      <button class="pomo-btn" id="btnPomo" title="番茄钟">&#x1F345;</button>
       <button class="btn flow" id="btnFlow" style="display:none">开始</button>
       <button class="btn" id="btnPin" title="固定">&#x1F4CC;</button>
       <button class="btn" id="btnFold" title="展开">&#x25B2;</button>
@@ -220,6 +229,73 @@ document.addEventListener('contextmenu', e => {
   e.preventDefault();
   window.stickyAPI.showContextMenu({ x: Math.round(e.x), y: Math.round(e.y) });
 });
+
+// ===== Pomodoro =====
+let pomoRunning = false;
+let pomoSeconds = 25 * 60;
+let pomoInterval = null;
+const POMO_DURATION = 25 * 60; // 25 min
+const POMO_BREAK = 5 * 60;     // 5 min
+
+function updatePomoDisplay() {
+  const m = Math.floor(pomoSeconds / 60);
+  const s = pomoSeconds % 60;
+  document.getElementById('pomoDisplay').textContent =
+    `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function startPomo() {
+  pomoRunning = true;
+  pomoSeconds = POMO_DURATION;
+  document.getElementById('pomoDisplay').style.display = 'inline';
+  document.getElementById('pomoDisplay').classList.remove('done');
+  document.getElementById('btnPomo').classList.add('active');
+  document.getElementById('pomoDisplay').style.color = '#ef4444';
+  updatePomoDisplay();
+
+  pomoInterval = setInterval(() => {
+    pomoSeconds--;
+    if (pomoSeconds <= 0) {
+      clearInterval(pomoInterval);
+      pomoInterval = null;
+      pomoRunning = false;
+      document.getElementById('btnPomo').classList.remove('active');
+      document.getElementById('pomoDisplay').classList.add('done');
+      document.getElementById('pomoDisplay').style.color = '#10b981';
+      document.getElementById('pomoDisplay').textContent = '完成!';
+
+      // Notify kanban card to add 25min elapsed
+      if (D && D.id) {
+        window.stickyAPI.addPomoTime(D.id, POMO_DURATION * 1000);
+      }
+
+      // 5s then show break
+      setTimeout(() => {
+        document.getElementById('pomoDisplay').textContent = '休息';
+        setTimeout(() => {
+          document.getElementById('pomoDisplay').style.display = 'none';
+          document.getElementById('pomoDisplay').classList.remove('done');
+        }, 3000);
+      }, 2000);
+    } else {
+      updatePomoDisplay();
+    }
+  }, 1000);
+}
+
+function stopPomo() {
+  if (pomoInterval) { clearInterval(pomoInterval); pomoInterval = null; }
+  pomoRunning = false;
+  document.getElementById('btnPomo').classList.remove('active');
+  document.getElementById('pomoDisplay').style.display = 'none';
+  document.getElementById('pomoDisplay').classList.remove('done');
+}
+
+document.getElementById('btnPomo').onclick = e => {
+  e.stopPropagation();
+  if (pomoRunning) { stopPomo(); }
+  else { startPomo(); }
+};
 </script>
 </body>
 </html>
