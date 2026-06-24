@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;background:transparent;overflow:hidden;user-select:none}
+body{font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;font-size:13px;padding:10px}
+.win{width:260px;border-radius:10px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.18)}
+.bar{flex-shrink:0;height:34px;display:flex;align-items:center;justify-content:space-between;padding:0 6px 0 10px}
+.bar-l{display:flex;align-items:center;gap:8px;flex:1;min-width:0;overflow:hidden;cursor:grab}
+.bar-l.pinned{cursor:default}
+.dot{width:16px;height:16px;border-radius:50%;flex-shrink:0}
+.dot.todo{background:#f59e0b}.dot.inProgress{background:#3b82f6}.dot.done{background:#10b981}
+.status-text{font-size:11px;color:rgba(0,0,0,0.5);flex-shrink:0}
+.bar-title{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:rgba(0,0,0,0.75);flex:1}
+.bar-r{display:flex;gap:2px;flex-shrink:0}
+.btn{width:24px;height:24px;border:none;background:transparent;border-radius:4px;cursor:pointer;font-size:12px;color:rgba(0,0,0,0.4);display:grid;place-items:center;transition:background .12s}
+.btn:hover{background:rgba(0,0,0,0.08)}
+.btn.on{color:#f59e0b}
+.flow{font-size:11px;font-weight:600;padding:0 7px;width:auto;color:var(--fc,#f59e0b);background:rgba(0,0,0,0.05)}
+.flow:hover{background:rgba(0,0,0,0.1)}
+.content{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.content.hide{display:none}
+.c-title{padding:6px 14px 0;font-size:15px;font-weight:700;line-height:1.3;color:rgba(0,0,0,0.85);word-break:break-word;animation:fadeIn .25s ease}
+.c-divider{height:1px;background:rgba(0,0,0,0.06);margin:8px 14px 0;flex-shrink:0;animation:fadeIn .3s ease}
+.c-body{flex:1;padding:6px 14px 12px;overflow-y:auto;font-size:12px;line-height:1.6;color:rgba(0,0,0,0.55);word-break:break-word;animation:fadeIn .35s ease}
+.c-time{padding:0 14px 8px;font-size:10px;color:rgba(0,0,0,0.25);animation:fadeIn .4s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+[data-color="yellow"] .win{background:linear-gradient(160deg,#fffbeb,#fef3c7);border-left:3px solid #eab308}
+[data-color="pink"] .win{background:linear-gradient(160deg,#fdf2f8,#fce7f3);border-left:3px solid #ec4899}
+[data-color="blue"] .win{background:linear-gradient(160deg,#eff6ff,#dbeafe);border-left:3px solid #3b82f6}
+[data-color="green"] .win{background:linear-gradient(160deg,#ecfdf5,#d1fae5);border-left:3px solid #10b981}
+[data-color="purple"] .win{background:linear-gradient(160deg,#f5f3ff,#ede9fe);border-left:3px solid #8b5cf6}
+[data-color=""] .win,body:not([data-color]) .win{background:linear-gradient(160deg,#fff,#f5f5f7);border-left:3px solid #d0d0d5}
+@media (prefers-color-scheme:dark){
+  [data-color="yellow"] .win{background:linear-gradient(160deg,#3d3520,#4a3a15)}
+  [data-color="pink"] .win{background:linear-gradient(160deg,#3d2030,#4a1a30)}
+  [data-color="blue"] .win{background:linear-gradient(160deg,#1a2a40,#152540)}
+  [data-color="green"] .win{background:linear-gradient(160deg,#1a3028,#152a20)}
+  [data-color="purple"] .win{background:linear-gradient(160deg,#2a2040,#251a40)}
+  [data-color=""] .win,body:not([data-color]) .win{background:linear-gradient(160deg,#2c2c2e,#3a3a3c)}
+  body{color:#f5f5f7}
+  .bar-title{color:rgba(255,255,255,0.75)}
+  .status-text{color:rgba(255,255,255,0.5)}
+  .c-title{color:rgba(255,255,255,0.85)}
+  .c-body{color:rgba(255,255,255,0.55)}
+  .c-time{color:rgba(255,255,255,0.25)}
+  .c-divider{background:rgba(255,255,255,0.08)}
+  .btn{color:rgba(255,255,255,0.4)}
+  .btn:hover{background:rgba(255,255,255,0.1)}
+  .flow{background:rgba(255,255,255,0.06)}
+}
+</style>
+</head>
+<body data-color="">
+<div class="win" id="win">
+  <div class="bar" id="bar">
+    <div class="bar-l" id="dragZone">
+      <span class="dot" id="dot"></span>
+      <span class="status-text" id="statusText">待办</span>
+      <span class="bar-title" id="barTitle">无标题</span>
+    </div>
+    <div class="bar-r">
+      <button class="btn flow" id="btnFlow" style="display:none">开始</button>
+      <button class="btn" id="btnPin" title="固定">&#x1F4CC;</button>
+      <button class="btn" id="btnFold" title="展开">&#x25B2;</button>
+    </div>
+  </div>
+  <div class="content hide" id="content">
+    <div class="c-title" id="cTitle"></div>
+    <div class="c-divider"></div>
+    <div class="c-body" id="cBody"></div>
+    <div class="c-time" id="cTime"></div>
+  </div>
+</div>
+
+<script>
+let D = null; // current data
+let pinned = false;
+let collapsed = true;
+
+// ===== Init =====
+(async () => {
+  D = await window.stickyAPI.getData();
+  if (D) render(D);
+  window.stickyAPI.onUpdate(d => { D = d; render(d); });
+  if (window.stickyAPI.onContextCommand) {
+    window.stickyAPI.onContextCommand((command) => {
+      if (!D || !command) return;
+      if (command.type === 'color') {
+        D.noteColor = command.color || null;
+        document.body.dataset.color = D.noteColor || '';
+        window.stickyAPI.updateColor(D.id, D.noteColor);
+      }
+      if (command.type === 'remove') {
+        window.stickyAPI.removeFromDesktop(D.id);
+      }
+    });
+  }
+})();
+
+// ===== Render =====
+function render(d) {
+  const st = d._sourceCol || d._stickyStatus || 'todo';
+  document.body.dataset.color = d.noteColor || '';
+  
+  const dot = document.getElementById('dot');
+  dot.className = 'dot ' + st;
+  
+  const statusMap = { todo: '待办', inProgress: '进行中', done: '已完成' };
+  const statusText = document.getElementById('statusText');
+  statusText.textContent = statusMap[st] || '待办';
+
+  const title = d.title || '无标题';
+  document.getElementById('barTitle').textContent = title;
+  document.getElementById('cTitle').textContent = title;
+  document.getElementById('cBody').textContent = d.desc || '';
+  document.getElementById('cTime').textContent = d.time || '';
+
+  setCollapsed(d._collapsed !== false);
+  setPinned(!!d._pinned);
+
+  // Flow button
+  const fb = document.getElementById('btnFlow');
+  if (st === 'done') { fb.style.display = 'none'; }
+  else {
+    fb.style.display = 'inline-grid';
+    fb.textContent = st === 'todo' ? '开始' : '完成';
+    fb.style.setProperty('--fc', st === 'todo' ? '#f59e0b' : '#3b82f6');
+  }
+}
+
+// ===== Collapse =====
+function setCollapsed(c) {
+  collapsed = c;
+  const ct = document.getElementById('content');
+  const btn = document.getElementById('btnFold');
+  const barTitle = document.getElementById('barTitle');
+  const statusText = document.getElementById('statusText');
+
+  if (c) {
+    ct.classList.add('hide');
+    btn.textContent = '\u25BC';
+    btn.title = '展开';
+    barTitle.style.display = 'block';
+    statusText.style.display = 'block';
+  }
+  else {
+    ct.classList.remove('hide');
+    btn.textContent = '\u25B2';
+    btn.title = '折叠';
+    barTitle.style.display = 'none';
+    statusText.style.display = 'none';
+  }
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      const barH = 34;
+      const pad = 20;
+      let newH = barH + pad;
+      if (!collapsed) {
+        const content = document.getElementById('content');
+        newH = barH + content.scrollHeight + pad;
+      }
+      window.stickyAPI.resize(newH);
+    });
+  });
+}
+
+document.getElementById('btnFold').onclick = e => {
+  e.stopPropagation();
+  setCollapsed(!collapsed);
+  window.stickyAPI.toggleCollapse(collapsed);
+};
+
+// ===== Pin =====
+function setPinned(v) {
+  pinned = v;
+  const btn = document.getElementById('btnPin');
+  const dz = document.getElementById('dragZone');
+  if (v) { btn.classList.add('on'); btn.title = '取消固定'; dz.classList.add('pinned'); }
+  else { btn.classList.remove('on'); btn.title = '固定'; dz.classList.remove('pinned'); }
+}
+
+document.getElementById('btnPin').onclick = e => {
+  e.stopPropagation();
+  setPinned(!pinned);
+  window.stickyAPI.togglePin(pinned);
+};
+
+// ===== Flow =====
+document.getElementById('btnFlow').onclick = e => {
+  e.stopPropagation();
+  const st = D?._sourceCol || D?._stickyStatus || 'todo';
+  if (st !== 'done') window.stickyAPI.changeStatus('next');
+};
+
+// ===== Drag =====
+(() => {
+  let dragging = false, sx = 0, sy = 0;
+  document.getElementById('dragZone').addEventListener('mousedown', e => {
+    if (e.button !== 0 || pinned || e.target.closest('.btn')) return;
+    dragging = true; sx = e.screenX; sy = e.screenY;
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', e => {
+    if (!dragging || e.buttons !== 1) { dragging = false; return; }
+    const dx = e.screenX - sx, dy = e.screenY - sy;
+    if (dx !== 0 || dy !== 0) {
+      sx = e.screenX; sy = e.screenY;
+      window.stickyAPI.dragMove(dx, dy);
+    }
+  });
+  document.addEventListener('mouseup', () => dragging = false);
+})();
+
+document.addEventListener('contextmenu', e => {
+  if (!e.target.closest('.win')) return;
+  e.preventDefault();
+  window.stickyAPI.showContextMenu({ x: Math.round(e.x), y: Math.round(e.y) });
+});
+</script>
+</body>
+</html>

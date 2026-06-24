@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kanota</title>
+<style>
+/* ===== Theme Variables ===== */
+:root, [data-theme="light"] {
+  --bg0:#f5f5f7; --bg:#fff; --bg2:#f0f0f3; --bg3:#e8e8ed;
+  --text:#1d1d1f; --text2:#6e6e73; --text3:#aeaeb2;
+  --border:#e0e0e5; --shadow:0 2px 12px rgba(0,0,0,0.06);
+  --shadow-lg:0 8px 28px rgba(0,0,0,0.1);
+  --accent:#0066cc; --accent-light:#ebf3ff;
+  --hover:#f0f0f3; --sidebar-bg:#f0f0f3;
+  --titlebar-bg:rgba(255,255,255,0.9);
+  --danger:#ef4444;
+  --col-todo:#f59e0b; --col-progress:#3b82f6; --col-done:#10b981;
+  --todo-bg:#fef3c7; --progress-bg:#dbeafe; --done-bg:#d1fae5;
+  --card-bg:#fff; --card-hover-bg:#fafafa;
+  --dash-card:#fff;
+  --ctx-bg:#fff; --ctx-border:#e0e0e5;
+  --desk-bg:linear-gradient(135deg, #f0f0f3 0%, #e8e8ed 100%);
+  --tab-active-bg:#fff; --tab-bg:transparent;
+}
+[data-theme="dark"] {
+  --bg0:#1c1c1e; --bg:#2c2c2e; --bg2:#3a3a3c; --bg3:#48484a;
+  --text:#f5f5f7; --text2:#aeaeb2; --text3:#636366;
+  --border:#48484a; --shadow:0 2px 12px rgba(0,0,0,0.3);
+  --shadow-lg:0 8px 28px rgba(0,0,0,0.5);
+  --accent:#0a84ff; --accent-light:#1a2538;
+  --hover:#3a3a3c; --sidebar-bg:#2c2c2e;
+  --titlebar-bg:rgba(28,28,30,0.9);
+  --danger:#f87171;
+  --col-todo:#f59e0b; --col-progress:#3b82f6; --col-done:#34d399;
+  --todo-bg:#3d2c14; --progress-bg:#1a2740; --done-bg:#1a3028;
+  --card-bg:#3a3a3c; --card-hover-bg:#48484a;
+  --dash-card:#3a3a3c;
+  --ctx-bg:#2c2c2e; --ctx-border:#48484a;
+  --desk-bg:linear-gradient(135deg, #2c2c2e 0%, #3a3a3c 100%);
+  --tab-active-bg:#3a3a3c; --tab-bg:transparent;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;font-size:14px}
+body{font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;background:var(--bg0);color:var(--text);user-select:none}
+
+/* ===== Titlebar ===== */
+.titlebar{display:flex;align-items:center;justify-content:space-between;height:42px;padding:0 8px 0 16px;background:var(--titlebar-bg);backdrop-filter:blur(20px);-webkit-app-region:drag;flex-shrink:0;border-bottom:1px solid var(--border);z-index:100}
+.tb-left{display:flex;align-items:center;gap:8px;color:var(--text2);font-size:13px}
+.tb-logo{font-weight:700;color:var(--text);font-size:15px;letter-spacing:-0.01em}
+.tb-logo s{color:var(--accent);text-decoration:none}
+.tb-actions{display:flex;gap:3px;-webkit-app-region:no-drag}
+.tb-btn{width:38px;height:30px;border:none;background:transparent;color:var(--text2);font-size:16px;border-radius:6px;cursor:pointer;display:grid;place-items:center;transition:all .15s}
+.tb-btn:hover{background:var(--hover);color:var(--text)}
+.tb-btn.close:hover{background:var(--danger);color:#fff}
+.tb-btn.pinned{background:var(--accent);color:#fff}
+
+/* ===== Layout ===== */
+.app{display:flex;height:calc(100% - 42px)}
+/* Sidebar */
+.sidebar{width:200px;flex-shrink:0;background:var(--sidebar-bg);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:18px 0;overflow-y:auto}
+.side-group{padding:0 10px;margin-bottom:20px}
+.side-label{font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text3);letter-spacing:.08em;padding:0 10px;margin-bottom:6px}
+.side-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;font-size:14px;cursor:pointer;color:var(--text2);transition:all .15s;position:relative}
+.side-item:hover{background:var(--hover)}
+.side-item.active{background:var(--accent);color:#fff;font-weight:600}
+.side-ico{font-size:15px;width:20px;text-align:center;flex-shrink:0;font-weight:500}
+.side-badge{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:var(--danger);color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;line-height:18px;text-align:center;border-radius:9px;padding:0 6px}
+.side-footer{margin-top:auto;padding:12px 16px;border-top:1px solid var(--border);font-size:11px;color:var(--text3)}
+
+/* Main */
+.main{flex:1;overflow-y:auto}
+.page{display:none;padding:24px 32px}
+.page.active{display:block}
+.h2{font-size:22px;font-weight:700;margin-bottom:6px}
+.sub{color:var(--text2);font-size:13px;margin-bottom:22px}
+
+/* ===== Dashboard ===== */
+.dash-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:26px}
+.dash-card{background:var(--dash-card);border:1px solid var(--border);border-radius:14px;padding:20px 24px;transition:all .15s;cursor:pointer}
+.dash-card:hover{box-shadow:var(--shadow)}
+.dash-num{font-size:38px;font-weight:800;line-height:1.1;font-family:"Sora","Microsoft YaHei",sans-serif}
+.dash-label{font-size:13px;color:var(--text2);margin-top:6px}
+.dash-dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:6px}
+.dash-qaq{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.qaq-btn{padding:14px 16px;background:var(--bg);border:1px solid var(--border);border-radius:12px;text-align:left;cursor:pointer;font-family:inherit;font-size:14px;color:var(--text);transition:all .15s;display:flex;align-items:center;gap:10px}
+.qaq-btn:hover{border-color:var(--accent);background:var(--accent-light)}
+.qaq-ico{font-size:22px;width:24px;text-align:center}
+
+/* ===== Kanban ===== */
+.kanban-page{display:flex;flex-direction:column;height:calc(100vh - 42px - 48px);overflow:hidden}
+
+/* Category Tabs (top) */
+.cat-tabs{display:flex;gap:4px;padding:0 0 12px;overflow-x:auto;flex-shrink:0;scroll-behavior:smooth;-webkit-overflow-scrolling:touch}
+.cat-tabs::-webkit-scrollbar{height:2px}
+.cat-tabs::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.1);border-radius:1px}
+.cat-tab{padding:8px 20px;border:1px solid var(--border);background:var(--tab-bg);border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text2);font-family:inherit;white-space:nowrap;transition:all .15s;display:flex;align-items:center;gap:6px}
+.cat-tab:hover{background:var(--hover)}
+.cat-tab.active{background:var(--tab-active-bg);color:var(--text);border-color:var(--accent);box-shadow:var(--shadow)}
+.cat-tab .cat-dot{width:7px;height:7px;border-radius:50%}
+.cat-tab .cat-dot.todo{background:var(--col-todo)}
+.cat-tab .cat-dot.progress{background:var(--col-progress)}
+.cat-tab .cat-dot.done{background:var(--col-done)}
+.cat-count{font-size:11px;color:var(--text3);background:rgba(0,0,0,0.06);padding:1px 7px;border-radius:8px;margin-left:2px}
+[data-theme="dark"] .cat-count{background:rgba(255,255,255,0.08)}
+
+/* Board */
+.board{display:flex;gap:14px;flex:1;overflow-x:auto;overflow-y:hidden;padding-bottom:8px}
+.board::-webkit-scrollbar{height:3px}
+.board::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.08);border-radius:2px}
+.column{flex:1;min-width:220px;max-width:360px;border-radius:12px;display:flex;flex-direction:column;overflow:hidden}
+.column.todo-col{background:var(--todo-bg)}
+.column.progress-col{background:var(--progress-bg)}
+.column.done-col{background:var(--done-bg)}
+.col-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 8px;flex-shrink:0}
+.col-title{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700}
+.col-dot{width:9px;height:9px;border-radius:50%}
+.col-dot.todo{background:var(--col-todo)}.col-dot.progress{background:var(--col-progress)}.col-dot.done{background:var(--col-done)}
+.col-count{font-size:12px;color:var(--text2);background:rgba(0,0,0,0.06);padding:2px 8px;border-radius:10px}
+[data-theme="dark"] .col-count{background:rgba(255,255,255,0.08)}
+.col-cards{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:0 12px 12px;min-height:50px}
+.col-cards::-webkit-scrollbar{width:4px}
+.col-cards::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.1);border-radius:2px}
+[data-theme="dark"] .col-cards::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08)}
+
+/* Cards - title only */
+.card{background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;cursor:grab;transition:all .15s;position:relative}
+.card:hover{box-shadow:var(--shadow)}
+.card:active{cursor:grabbing}
+.card.dragging{opacity:.3;transform:rotate(1deg)}
+.card-title{font-size:13px;line-height:1.4;word-break:break-word;font-weight:500}
+.card-title:empty::before{content:'双击编辑';color:var(--text3)}
+.card-title[contenteditable]{outline:none;background:rgba(0,0,0,0.03);border-radius:3px;padding:2px 4px;margin:-2px -4px;cursor:text}
+[data-theme="dark"] .card-title[contenteditable]{background:rgba(255,255,255,0.06)}
+.card-foot{display:flex;align-items:center;justify-content:space-between;margin-top:6px}
+.card-time{font-size:10px;color:var(--text3)}
+.card-acts{display:flex;gap:3px;opacity:0;transition:opacity .15s}
+.card:hover .card-acts{opacity:1}
+.card-act{width:22px;height:22px;border:none;background:rgba(0,0,0,0.04);border-radius:4px;cursor:pointer;font-size:11px;color:var(--text2);display:grid;place-items:center;transition:all .12s}
+.card-act:hover{background:var(--accent);color:#fff}
+[data-theme="dark"] .card-act{background:rgba(255,255,255,0.06)}
+.card[data-color="yellow"]{border-left:3px solid #eab308}
+.card[data-color="pink"]{border-left:3px solid #ec4899}
+.card[data-color="blue"]{border-left:3px solid #3b82f6}
+.card[data-color="green"]{border-left:3px solid #10b981}
+.card[data-color="purple"]{border-left:3px solid #8b5cf6}
+.card[data-color="orange"]{border-left:3px solid #f59e0b}
+.card[data-color="lavender"]{border-left:3px solid #a78bfa}
+
+/* Drag hint bar */
+.drag-hint{flex-shrink:0;margin:8px 0 12px;padding:10px 14px;border-radius:10px;background:var(--accent-light);text-align:center;color:var(--accent);font-size:12px;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:6px}
+.drag-hint .dh-icon{font-size:18px}
+
+/* Task Creation Panel (bottom) */
+.task-create{flex-shrink:0;background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:16px 20px;display:flex;flex-direction:column;gap:10px;margin-top:4px}
+.task-create .tc-title{width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:8px;background:var(--bg0);color:var(--text);font-size:14px;font-family:inherit;outline:none;transition:border-color .15s}
+.task-create .tc-title:focus{border-color:var(--accent)}
+.task-create .tc-title::placeholder{color:var(--text3);font-size:13px}
+.task-create .tc-body{width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:8px;background:var(--bg0);color:var(--text);font-size:13px;font-family:inherit;outline:none;resize:none;min-height:80px;transition:border-color .15s;line-height:1.6}
+.task-create .tc-body:focus{border-color:var(--accent)}
+.task-create .tc-body::placeholder{color:var(--text3)}
+.task-create .tc-row{display:flex;align-items:center;gap:12px}
+.task-create .tc-select{padding:8px 12px;border:1px solid var(--border);border-radius:7px;background:var(--bg0);color:var(--text);font-size:13px;font-family:inherit;cursor:pointer;outline:none;transition:border-color .15s}
+.task-create .tc-select:focus{border-color:var(--accent)}
+.task-create .tc-submit{padding:9px 24px;background:var(--accent);color:#fff;border:none;border-radius:7px;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit;transition:all .12s;white-space:nowrap}
+.task-create .tc-submit:hover{opacity:.88}
+
+/* ===== Stickies ===== */
+.stiky-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.stiky-list{display:flex;flex-direction:column;gap:8px}
+.stiky-row{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;transition:all .15s;position:relative}
+.stiky-row:hover{box-shadow:var(--shadow)}
+.stiky-row.collapsed{opacity:.6}
+.stiky-row.collapsed .stiky-text,.stiky-row.collapsed .stiky-btns{pointer-events:none;filter:blur(1px)}
+.stiky-row.collapsed .stiky-text-collapse{pointer-events:auto;filter:none}
+.stiky-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.stiky-dot.todo{background:var(--col-todo)}.stiky-dot.progress{background:var(--col-progress)}.stiky-dot.done{background:var(--col-done)}
+.stiky-text{flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.stiky-text.done{text-decoration:line-through;opacity:.5}
+.stiky-btns{display:flex;gap:6px;align-items:center;opacity:0;transition:opacity .15s}
+.stiky-row:hover .stiky-btns{opacity:1}
+.stiky-act{padding:5px 10px;border:1px solid var(--border);background:var(--bg);border-radius:5px;cursor:pointer;font-size:11px;color:var(--text2);font-family:inherit;transition:all .12s;display:flex;align-items:center;gap:3px;white-space:nowrap}
+.stiky-act:hover{background:var(--accent);border-color:var(--accent);color:#fff}
+.stiky-act.danger:hover{background:var(--danger);border-color:var(--danger)}
+/* Multi-state selector */
+.stiky-status{display:flex;gap:1px;border-radius:5px;overflow:hidden;border:1px solid var(--border)}
+.stiky-status .ss-btn{padding:4px 8px;border:none;background:var(--bg);color:var(--text2);font-size:10px;cursor:pointer;font-family:inherit;transition:all .12s;white-space:nowrap}
+.stiky-status .ss-btn:hover{background:var(--hover);color:var(--text)}
+.stiky-status .ss-btn.active{background:var(--accent);color:#fff;font-weight:600}
+.stiky-status .ss-btn.active.todo-sel{background:var(--col-todo)}
+.stiky-status .ss-btn.active.progress-sel{background:var(--col-progress)}
+.stiky-status .ss-btn.active.done-sel{background:var(--col-done)}
+
+/* Sticky detail panel */
+.note-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:500;display:none;align-items:center;justify-content:center}
+.note-overlay.show{display:flex}
+.note-panel{background:var(--bg);border-radius:16px;padding:28px;width:min(520px,90vw);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;gap:14px;max-height:80vh;overflow-y:auto}
+.note-panel h3{font-size:17px;font-weight:700}
+.note-panel label{font-size:12px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.04em}
+.note-panel input,.note-panel textarea,.note-panel select{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--bg0);color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:border-color .15s}
+.note-panel input:focus,.note-panel textarea:focus,.note-panel select:focus{border-color:var(--accent)}
+.note-panel .np-actions{display:flex;gap:8px;justify-content:flex-end}
+
+/* ===== Trash ===== */
+.trash-list{display:flex;flex-direction:column;gap:8px}
+.trash-item{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px}
+.trash-info{flex:1;min-width:0}
+.trash-title{font-size:13px;font-weight:500}
+.trash-time{font-size:11px;color:var(--text3);margin-top:2px}
+.trash-btns{display:flex;gap:6px;flex-shrink:0}
+.trash-btn{padding:5px 12px;border:1px solid var(--border);background:var(--bg);border-radius:6px;cursor:pointer;font-size:11px;color:var(--text);font-family:inherit;transition:all .12s}
+.trash-btn:hover{background:var(--accent);border-color:var(--accent);color:#fff}
+.trash-btn.danger:hover{background:var(--danger);border-color:var(--danger)}
+
+/* ===== Settings ===== */
+.set-group{margin-bottom:28px}
+.set-group h3{font-size:16px;font-weight:700;margin-bottom:12px}
+.set-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+.set-row label{font-size:14px}
+.set-row sub{color:var(--text2);font-size:12px;display:block}
+.toggle{position:relative;width:44px;height:24px;cursor:pointer}
+.toggle input{display:none}
+.toggle .slider{position:absolute;inset:0;background:var(--bg3);border-radius:12px;transition:.2s}
+.toggle .slider::before{content:'';position:absolute;width:20px;height:20px;left:2px;bottom:2px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,0.15)}
+.toggle input:checked+.slider{background:var(--accent)}
+.toggle input:checked+.slider::before{transform:translateX(20px)}
+.theme-opt{display:flex;gap:8px}
+.theme-opt button{padding:8px 20px;border:2px solid var(--border);border-radius:8px;cursor:pointer;font-size:14px;background:var(--bg);color:var(--text);font-family:inherit;transition:all .15s}
+.theme-opt button.active{border-color:var(--accent);background:var(--accent);color:#fff}
+.set-acts{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap}
+.set-acts button{padding:8px 16px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);cursor:pointer;font-family:inherit;font-size:13px;transition:.15s}
+.set-acts button:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ===== Empty State ===== */
+.empty{text-align:center;padding:50px;color:var(--text3)}
+.empty .eico{font-size:36px;margin-bottom:12px;opacity:.3}
+.empty p{font-size:13px}
+
+/* ===== Close Dialog ===== */
+.dlg-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:10000;display:flex;align-items:center;justify-content:center;animation:dlgFadeIn .25s ease}
+@keyframes dlgFadeIn{from{opacity:0}to{opacity:1}}
+.dlg-box{background:var(--bg,#fff);border-radius:16px;padding:32px 32px 24px;max-width:400px;width:90%;box-shadow:0 16px 48px rgba(0,0,0,0.25);animation:dlgSlide .3s ease}
+@keyframes dlgSlide{from{opacity:0;transform:translateY(20px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
+.dlg-icon{font-size:36px;text-align:center;margin-bottom:12px;color:#f59e0b}
+.dlg-title{font-size:18px;font-weight:700;text-align:center;margin-bottom:8px;color:var(--text,#1a1a2e)}
+.dlg-desc{font-size:13px;line-height:1.7;color:var(--text2,#666);text-align:center;margin-bottom:24px}
+.dlg-btns{display:flex;flex-direction:column;gap:8px}
+.dlg-btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 20px;border:none;border-radius:10px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;transition:all .15s;background:#f0f0f3;color:#333}
+.dlg-btn:hover{background:#e4e4e8;transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,0.08)}
+.dlg-btn-ico{font-size:18px;opacity:.6}
+.dlg-quit{background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff}
+.dlg-quit:hover{background:linear-gradient(135deg,#f87171,#ef4444);box-shadow:0 4px 16px rgba(239,68,68,0.3)}
+.dlg-cancel{background:transparent;color:#999;font-size:13px;font-weight:400}
+.dlg-cancel:hover{background:rgba(0,0,0,0.04);color:#666;box-shadow:none;transform:none}
+[data-theme="dark"] .dlg-box{background:#1e1e22;box-shadow:0 16px 48px rgba(0,0,0,0.5)}
+[data-theme="dark"] .dlg-title{color:#f5f5f7}
+[data-theme="dark"] .dlg-desc{color:#999}
+[data-theme="dark"] .dlg-btn{background:#2c2c30;color:#ddd}
+[data-theme="dark"] .dlg-btn:hover{background:#3a3a3e}
+[data-theme="dark"] .dlg-cancel{background:transparent;color:#777}
+[data-theme="dark"] .dlg-cancel:hover{color:#aaa}
+
+/* ===== Responsive ===== */
+@media(max-width:700px){.sidebar{width:52px}.side-item span:not(.side-ico){display:none}.side-label{display:none}.board{flex-direction:column}.column{max-width:none}.dash-grid{grid-template-columns:1fr}.dash-qaq{grid-template-columns:1fr}.kanban-page{height:auto}.page{padding:16px}}
+</style>
+</head>
+<body data-theme="light">
+
+<header class="titlebar">
+  <div class="tb-left"><span class="tb-logo">Kanota<s>.</s></span><span>桌面看板便签</span></div>
+  <div class="tb-actions">
+    <button class="tb-btn" id="btnMin" title="最小化">&#x2013;</button>
+    <button class="tb-btn" id="btnMax" title="最大化">&#x25A1;</button>
+    <button class="tb-btn close" id="btnClose" title="关闭">&times;</button>
+  </div>
+</header>
+
+<div class="app">
+  <nav class="sidebar" id="sidebar">
+    <div class="side-group">
+      <div class="side-label">&#x2009;主 菜 单</div>
+      <div class="side-item active" data-page="dashboard"><span class="side-ico">&#x25A3;</span> 仪表盘</div>
+      <div class="side-item" data-page="kanban"><span class="side-ico">&#x2261;</span> 看板</div>
+      <div class="side-item" data-page="stickies"><span class="side-ico">&#x25C6;</span> 桌面便签</div>
+    </div>
+    <div class="side-group">
+      <div class="side-label">&#x2009;管 理</div>
+      <div class="side-item" data-page="trash"><span class="side-ico">&#x2298;</span> 回收站<span class="side-badge" id="badgeTrash" style="display:none">0</span></div>
+      <div class="side-item" data-page="settings"><span class="side-ico">&#x2299;</span> 设置</div>
+    </div>
+    <div class="side-footer">Kanota v3.0</div>
+  </nav>
+
+  <main class="main">
+    <!-- ===== Dashboard ===== -->
+    <div class="page active" id="page-dashboard">
+      <h2 class="h2">今日概览</h2>
+      <div class="dash-grid">
+        <div class="dash-card" onclick="goto('kanban')">
+          <div class="dash-num" style="color:var(--col-todo)" id="dashTodo">0</div>
+          <div class="dash-label"><span class="dash-dot" style="background:var(--col-todo)"></span>待办任务</div>
+        </div>
+        <div class="dash-card" onclick="goto('kanban')">
+          <div class="dash-num" style="color:var(--col-progress)" id="dashProgress">0</div>
+          <div class="dash-label"><span class="dash-dot" style="background:var(--col-progress)"></span>进行中</div>
+        </div>
+        <div class="dash-card">
+          <div class="dash-num" style="color:var(--col-done)" id="dashDone">0</div>
+          <div class="dash-label"><span class="dash-dot" style="background:var(--col-done)"></span>已完成</div>
+        </div>
+      </div>
+      <h3 style="font-size:16px;font-weight:700;margin:24px 0 14px">快捷操作</h3>
+      <div class="dash-qaq">
+        <button class="qaq-btn" onclick="goto('kanban');setTimeout(()=>document.getElementById('tcTitle')?.focus(),200)">
+          <span class="qaq-ico">+</span><div><div style="font-size:13px;font-weight:600">新建任务</div><div style="font-size:11px;color:var(--text2);margin-top:2px">添加待办事项</div></div>
+        </button>
+        <button class="qaq-btn" onclick="goto('stickies')">
+          <span class="qaq-ico">&#x25C6;</span><div><div style="font-size:13px;font-weight:600">便签管理</div><div style="font-size:11px;color:var(--text2);margin-top:2px">查看并管理所有标签</div></div>
+        </button>
+        <button class="qaq-btn" onclick="goto('trash')">
+          <span class="qaq-ico">&#x2298;</span><div><div style="font-size:13px;font-weight:600">回收站</div><div style="font-size:11px;color:var(--text2);margin-top:2px">恢复已删除的便签</div></div>
+        </button>
+        <button class="qaq-btn" onclick="goto('settings')">
+          <span class="qaq-ico">&#x2299;</span><div><div style="font-size:13px;font-weight:600">设置</div><div style="font-size:11px;color:var(--text2);margin-top:2px">主题与数据管理</div></div>
+        </button>
+      </div>
+    </div>
+
+    <!-- ===== Kanban ===== -->
+    <div class="page" id="page-kanban">
+      <div class="kanban-page">
+        <!-- Board Columns -->
+        <div class="board">
+          <div class="column todo-col">
+            <div class="col-header"><div class="col-title"><span class="col-dot todo"></span>待办</div><span class="col-count" id="cnt-todo">0</span></div>
+            <div class="col-cards" id="col-todo"></div>
+          </div>
+          <div class="column progress-col">
+            <div class="col-header"><div class="col-title"><span class="col-dot progress"></span>进行中</div><span class="col-count" id="cnt-inProgress">0</span></div>
+            <div class="col-cards" id="col-inProgress"></div>
+          </div>
+          <div class="column done-col">
+            <div class="col-header"><div class="col-title"><span class="col-dot done"></span>已完成</div><span class="col-count" id="cnt-done">0</span></div>
+            <div class="col-cards" id="col-done"></div>
+          </div>
+        </div>
+
+        <!-- Drag to desktop hint -->
+        <div class="drag-hint">
+          <span class="dh-icon">&#x25C6;</span>
+          <span>拖拽卡片到窗口外即可创建桌面浮动便签</span>
+        </div>
+
+        <!-- Task Creation Panel (bottom) -->
+        <div class="task-create" id="taskPanel">
+          <input class="tc-title" id="tcTitle" placeholder="标题" maxlength="80" autocomplete="off">
+          <textarea class="tc-body" id="tcBody" placeholder="正文（可选）" rows="3" autocomplete="off"></textarea>
+          <div class="tc-row">
+            <select class="tc-select" id="tcStatus">
+              <option value="todo">待办</option>
+              <option value="inProgress">进行中</option>
+              <option value="done">已完成</option>
+            </select>
+            <button class="tc-submit" id="tcSubmit">添加任务</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Stickies ===== -->
+    <div class="page" id="page-stickies">
+      <div class="stiky-head">
+        <div><h2 class="h2" style="margin-bottom:0">桌面便签管理</h2><p class="sub" style="margin-bottom:0">管理桌面上的浮动便签</p></div>
+        <button onclick="renderStickies()" style="padding:8px 14px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text);cursor:pointer;font-family:inherit;font-size:12px">刷新</button>
+      </div>
+      <div class="stiky-list" id="stikyList"></div>
+    </div>
+
+    <!-- ===== Trash ===== -->
+    <div class="page" id="page-trash">
+      <h2 class="h2">回收站</h2><p class="sub">关闭的标签保存在此处，可恢复或永久删除</p>
+      <div class="trash-list" id="trashList"></div>
+      <div style="margin-top:16px"><button onclick="clearTrash()" style="padding:6px 14px;border:1px solid var(--danger);border-radius:7px;background:transparent;color:var(--danger);cursor:pointer;font-family:inherit;font-size:12px">清空回收站</button></div>
+    </div>
+
+    <!-- ===== Settings ===== -->
+    <div class="page" id="page-settings">
+      <h2 class="h2">设置</h2>
+      <div class="set-group">
+        <h3>外观</h3>
+        <div class="set-row"><label>主题</label><div class="theme-opt" id="themeSelect"><button class="active" data-theme="light">浅色</button><button data-theme="dark">深色</button></div></div>
+        <div class="set-row"><div><label>窗口置顶</label><sub>保持在其他窗口之上</sub></div><label class="toggle"><input type="checkbox" id="togPin"><span class="slider"></span></label></div>
+      </div>
+      <div class="set-group">
+        <h3>数据</h3>
+        <div class="set-acts">
+          <button id="btnExport">导出 JSON</button>
+          <button id="btnImport">导入 JSON</button>
+          <button id="btnClear" style="color:var(--danger);border-color:var(--danger)">清空所有数据</button>
+        </div>
+      </div>
+      <div class="set-group">
+        <h3>关于</h3>
+        <p style="color:var(--text2);font-size:13px">Kanota v3.0 · Electron · 单窗口架构 · 数据本地存储</p>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Note Detail Overlay -->
+<div class="note-overlay" id="noteOverlay">
+  <div class="note-panel" id="notePanel">
+    <h3>便签详情</h3>
+    <div><label>标题</label><input id="npTitle" placeholder="标题" maxlength="80"></div>
+    <div><label>内容</label><textarea id="npText" rows="4" placeholder="写点什么..."></textarea></div>
+    <div style="display:flex;gap:12px">
+      <div style="flex:1"><label>状态</label><select id="npStatus"><option value="todo">待办</option><option value="inProgress">进行中</option><option value="done">已完成</option></select></div>
+      <div style="flex:1"><label>标签色</label><select id="npColor"><option value="">默认</option><option value="yellow">黄色</option><option value="pink">粉色</option><option value="blue">蓝色</option><option value="green">绿色</option><option value="purple">紫色</option></select></div>
+    </div>
+    <div class="np-actions">
+      <button class="stiky-act" onclick="closeNoteModal()">取消</button>
+      <button class="stiky-act" onclick="saveNoteModal()" style="background:var(--accent);color:#fff;border-color:var(--accent)">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== Data =====
+let data = { todo: [], inProgress: [], done: [], _stickies: [] };
+let settings = { theme: 'light', alwaysOnTop: false };
+let trash = [];
+let currentPage = 'dashboard', noteEditing = null;
+let activeKanbanCat = 'todo'; // which category tab is active for filtering
+
+const KANBAN_COLS = ['todo', 'inProgress', 'done'];
+const COLS = { todo: 'col-todo', inProgress: 'col-inProgress', done: 'col-done' };
+
+function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+function cardTitle(card) { return card.title || card.text || ''; }
+function cardDesc(card) { return card.desc || ''; }
+function findCardLocation(cardId, preferredCol) {
+  if (preferredCol && data[preferredCol]) {
+    const idx = data[preferredCol].findIndex(c => c.id === cardId);
+    if (idx >= 0) return { col: preferredCol, card: data[preferredCol][idx], idx };
+  }
+  for (const col of KANBAN_COLS) {
+    const idx = (data[col] || []).findIndex(c => c.id === cardId);
+    if (idx >= 0) return { col, card: data[col][idx], idx };
+  }
+  return null;
+}
+
+// Migrate old cards that only have 'text' field
+function migrateCard(c) {
+  if (!c.title && c.text) { c.title = c.text; c.desc = ''; delete c.text; }
+  if (!c.title) c.title = '';
+  if (!c.desc) c.desc = '';
+  return c;
+}
+function migrateData() {
+  for (const col of KANBAN_COLS) {
+    if (!Array.isArray(data[col])) data[col] = [];
+    data[col] = data[col].map(migrateCard);
+  }
+  if (!Array.isArray(data._stickies)) data._stickies = [];
+  data._stickies = data._stickies.map(migrateCard);
+}
+
+// ===== Global Drag State (for desktop sticky creation) =====
+let dragState = null; // { card, col, id, lastMouseX, lastMouseY, handled }
+
+async function init() {
+  [data, settings, trash] = await Promise.all([
+    window.electronAPI.loadData(),
+    window.electronAPI.loadSettings(),
+    window.electronAPI.loadTrash()
+  ]);
+  migrateData();
+  applyTheme(settings.theme);
+  document.getElementById('togPin').checked = settings.alwaysOnTop;
+  bindTitlebar();
+  bindSidebar();
+  bindTaskCreate();
+  bindCategoryTabs();
+  bindDocDrag();    // global drag-out detection
+  bindStickyEvents(); // listen for sticky windows removed/closed externally
+  bindCtx();
+  bindSettings();
+  bindNoteOverlay();
+  renderAll();
+}
+function renderAll() { renderKanban(); updateDashboard(); updateTrashBadge(); updateTabCounts(); }
+async function save() { await window.electronAPI.saveData(data); }
+
+// ===== Titlebar =====
+function bindTitlebar() {
+  document.getElementById('btnMin').onclick = () => window.electronAPI.minimize();
+  document.getElementById('btnMax').onclick = () => window.electronAPI.maximize();
+  document.getElementById('btnClose').onclick = () => {
+    document.getElementById('closeDlgBackdrop').style.display = 'flex';
+  };
+
+  // Close dialog buttons
+  document.getElementById('dlgTray').onclick = () => window.electronAPI.hideToTray();
+  document.getElementById('dlgQuit').onclick = () => window.electronAPI.quitApp();
+  document.getElementById('dlgCancel').onclick = () => {
+    document.getElementById('closeDlgBackdrop').style.display = 'none';
+  };
+  document.getElementById('closeDlgBackdrop').onclick = (e) => {
+    if (e.target === e.currentTarget) document.getElementById('closeDlgBackdrop').style.display = 'none';
+  };
+}
+
+// ===== Sidebar =====
+function bindSidebar() {
+  document.querySelectorAll('.side-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const p = item.dataset.page;
+      document.querySelectorAll('.side-item').forEach(i => i.classList.remove('active'));
+      item.classList.add('active');
+      currentPage = p;
+      document.querySelectorAll('.page').forEach(pg => pg.classList.remove('active'));
+      const el = document.getElementById('page-' + p);
+      if (el) el.classList.add('active');
+      if (p === 'stickies') renderStickies();
+      if (p === 'trash') renderTrash();
+      if (p === 'dashboard') updateDashboard();
+      if (p === 'kanban') { renderKanban(); updateTabCounts(); }
+    });
+  });
+}
+function goto(p) {
+  const el = document.querySelector('.side-item[data-page="' + p + '"]');
+  if (el) el.click();
+}
+
+function updateDashboard() {
+  document.getElementById('dashTodo').textContent = (data.todo || []).length;
+  document.getElementById('dashProgress').textContent = (data.inProgress || []).length;
+  document.getElementById('dashDone').textContent = (data.done || []).length;
+}
+function updateTrashBadge() {
+  const b = document.getElementById('badgeTrash');
+  b.textContent = trash.length;
+  b.style.display = trash.length ? 'block' : 'none';
+}
+function updateTabCounts() {
+  for (const col of KANBAN_COLS) {
+    const cnt = document.getElementById('tabCnt-' + col);
+    if (cnt) cnt.textContent = (data[col] || []).length;
+  }
+}
+
+// ===== Category Tabs =====
+function bindCategoryTabs() {
+  const ct = document.getElementById('catTabs');
+  if (!ct) return;
+  ct.addEventListener('click', (e) => {
+    const tab = e.target.closest('.cat-tab');
+    if (!tab) return;
+    activeKanbanCat = tab.dataset.cat;
+    document.querySelectorAll('.cat-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    const colEl = document.getElementById(COLS[activeKanbanCat]);
+    if (colEl) colEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  });
+}
+
+// ===== Task Create Panel =====
+function bindTaskCreate() {
+  document.getElementById('tcSubmit').onclick = () => {
+    const title = document.getElementById('tcTitle').value.trim();
+    if (!title) { document.getElementById('tcTitle').focus(); return; }
+    const desc = document.getElementById('tcBody').value.trim();
+    const status = document.getElementById('tcStatus').value;
+    data[status].push({
+      id: genId(),
+      title: title,
+      desc: desc,
+      time: new Date().toLocaleDateString('zh-CN'),
+      noteColor: null
+    });
+    document.getElementById('tcTitle').value = '';
+    document.getElementById('tcBody').value = '';
+    document.getElementById('tcTitle').focus();
+    activeKanbanCat = status;
+    document.querySelectorAll('.cat-tab').forEach(t => t.classList.remove('active'));
+    const tab = document.querySelector('.cat-tab[data-cat="' + status + '"]');
+    if (tab) tab.classList.add('active');
+    renderKanban();
+    updateDashboard();
+    updateTabCounts();
+    save();
+  };
+  // Ctrl+Enter to submit
+  document.getElementById('tcTitle').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      document.getElementById('tcSubmit').click();
+    }
+  });
+  document.getElementById('tcBody').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      document.getElementById('tcSubmit').click();
+    }
+  });
+}
+
+// ===== Global drag-out-to-desktop detection =====
+function bindDocDrag() {
+  // Track mouse position during drag for desktop sticky creation
+  document.addEventListener('dragover', e => {
+    if (dragState) {
+      dragState.lastMouseX = e.clientX;
+      dragState.lastMouseY = e.clientY;
+    }
+    e.preventDefault(); // allow drop anywhere on document
+  });
+
+  // Handle drops that land on document body (not on a card/column)
+  document.addEventListener('drop', e => {
+    if (!dragState) return;
+    // Check if this drop is outside the valid drop targets (board columns)
+    const onBoard = e.target.closest('.col-cards') || e.target.closest('.card');
+    if (!onBoard) {
+      e.preventDefault();
+      dropAsSticky();
+    }
+  });
+}
+
+// Listen for sticky windows being removed or status changed from main process
+function bindStickyEvents() {
+  // sticky-status-changed: floating sticky's flow button changed state (main process already saved)
+  if (window.electronAPI.onStickyStatusChanged) {
+    window.electronAPI.onStickyStatusChanged(async (cardId, newStatus) => {
+      // Main process already updated the data file; reload to stay in sync
+      data = await window.electronAPI.loadData();
+      migrateData();
+      renderKanban();
+      renderStickies();
+      updateDashboard();
+      updateTabCounts();
+    });
+  }
+
+  // sticky-closed: card was deleted from desktop AND moved to trash
+  if (window.electronAPI.onStickyClosed) {
+    window.electronAPI.onStickyClosed((cardId) => {
+      const idx = data._stickies.findIndex(c => c.id === cardId);
+      if (idx >= 0) {
+        data._stickies.splice(idx, 1);
+      }
+      window.electronAPI.loadTrash().then(t => {
+        trash = t;
+        updateTrashBadge();
+      });
+      renderStickies();
+    });
+  }
+
+  // sticky-removed: card was removed from desktop (keep kanban); sourceCol is the original kanban column
+  if (window.electronAPI.onStickyRemoved) {
+    window.electronAPI.onStickyRemoved((cardId, sourceCol) => {
+      const idx = data._stickies.findIndex(c => c.id === cardId);
+      if (idx >= 0) {
+        data._stickies.splice(idx, 1);
+      }
+      // No re-add to kanban - the card was never removed from kanban in the new model
+      renderStickies();
+    });
+  }
+
+  // kanban-card-deleted: a kanban card was deleted with cascading cleanup
+  if (window.electronAPI.onKanbanCardDeleted) {
+    window.electronAPI.onKanbanCardDeleted(async (cardId, col, stickyIds) => {
+      // Reload data to reflect all changes made by main process
+      data = await window.electronAPI.loadData();
+      migrateData();
+      trash = await window.electronAPI.loadTrash();
+      renderAll();
+    });
+  }
+
+  // sticky-color-changed: a sticky changed color, sync to kanban card
+  if (window.electronAPI.onStickyColorChanged) {
+    window.electronAPI.onStickyColorChanged((cardId, color) => {
+      for (const col of KANBAN_COLS) {
+        const card = (data[col] || []).find(c => c.id === cardId);
+        if (card) { card.noteColor = color; break; }
+      }
+      renderKanban();
+      renderStickies();
+      updateDashboard();
+      updateTabCounts();
+    });
+  }
+
+  // New events: sticky:removed, sticky:statusChanged
+  if (window.electronAPI.onStickyRemoved2) {
+    window.electronAPI.onStickyRemoved2(async (cardId) => {
+      data = await window.electronAPI.loadData();
+      migrateData();
+      renderStickies();
+    });
+  }
+
+  if (window.electronAPI.onStickyStatusChanged2) {
+    window.electronAPI.onStickyStatusChanged2(async (cardId, newStatus) => {
+      data = await window.electronAPI.loadData();
+      migrateData();
+      renderKanban();
+      renderStickies();
+      updateDashboard();
+      updateTabCounts();
+    });
+  }
+
+  if (window.electronAPI.onStickyColorChanged2) {
+    window.electronAPI.onStickyColorChanged2(async (cardId, color) => {
+      data = await window.electronAPI.loadData();
+      migrateData();
+      renderKanban();
+      renderStickies();
+      updateDashboard();
+      updateTabCounts();
+    });
+  }
+
+  if (window.electronAPI.onKanbanCardDeleted2) {
+    window.electronAPI.onKanbanCardDeleted2(async (cardId, col) => {
+      data = await window.electronAPI.loadData();
+      migrateData();
+      trash = await window.electronAPI.loadTrash();
+      renderAll();
+    });
+  }
+}
+
+// Create a desktop floating sticky COPY (prefab) at the cursor's screen position.
+// The original kanban card stays untouched; desktop sticky is a clone linked via _refId.
+async function dropAsSticky() {
+  if (!dragState || dragState.handled) return;
+  dragState.handled = true;
+  const { card, col } = dragState;
+  const orig = data[col].find(c => c.id === card.id);
+  if (!orig) return;
+
+  // Prevent duplicate: one original card can only have one desktop sticky
+  const existing = (data._stickies || []).find(s => s._refId === orig.id);
+  if (existing) return;
+
+  // Create a clone with new id; keep reference to original kanban card
+  const cd = {
+    ...orig,
+    id: genId(),
+    _refId: orig.id,
+    _stickyStatus: col,
+    _sourceCol: col,
+    _collapsed: true
+  };
+
+  // Calculate screen coordinates
+  const mouseX = dragState.lastMouseX ?? window.innerWidth / 2;
+  const mouseY = dragState.lastMouseY ?? window.innerHeight / 2;
+  const screenX = dragState._isScreenCoords ? mouseX : (window.screenX + mouseX);
+  const screenY = dragState._isScreenCoords ? mouseY : (window.screenY + mouseY);
+
+  // Create floating sticky via IPC
+  await window.electronAPI.openSticky(cd, Math.round(screenX), Math.round(screenY));
+
+  // Save to stickies array
+  cd._stickyX = Math.round(screenX);
+  cd._stickyY = Math.round(screenY);
+  data._stickies.push(cd);
+
+  renderKanban();
+  renderStickies();
+  updateDashboard();
+  updateTabCounts();
+  save();
+}
+
+// ===== Unused: bindDeskDrop removed in favor of global drag-out detection =====
+
+// ===== Kanban Rendering =====
+function renderKanban() {
+  for (const [col, id] of Object.entries(COLS)) {
+    const ct = document.getElementById(id);
+    if (!ct) continue;
+    ct.innerHTML = '';
+    (data[col] || []).forEach((card, idx) => {
+      const el = document.createElement('div');
+      el.className = 'card';
+      if (card.noteColor) el.dataset.color = card.noteColor;
+      el.draggable = true;
+      el.dataset.col = col;
+      el.dataset.idx = idx;
+      el.dataset.id = card.id;
+      // Card shows ONLY title
+      const title = cardTitle(card);
+      el.innerHTML = `<div class="card-title">${esc(title)}</div>
+        <div class="card-foot">
+          <span class="card-time">${card.time || ''}</span>
+          <div class="card-acts">
+            <button class="card-act e-pop" title="打开详情">&#x25C6;</button>
+          </div>
+        </div>`;
+      el.addEventListener('dragstart', onDS);
+      el.addEventListener('dragend', onDE);
+      el.addEventListener('dragover', e => e.preventDefault());
+      el.addEventListener('drop', onDrop);
+      // Double-click to edit title inline
+      const tx = el.querySelector('.card-title');
+      tx.addEventListener('dblclick', () => {
+        const old = tx.textContent || '';
+        tx.contentEditable = 'true';
+        tx.focus();
+        const r = document.createRange();
+        r.selectNodeContents(tx);
+        getSelection().removeAllRanges();
+        getSelection().addRange(r);
+        function fin() {
+          tx.contentEditable = 'false';
+          const n = tx.textContent?.trim() || '';
+          if (n && n !== old) {
+            const i = parseInt(el.dataset.idx);
+            data[col][i].title = n;
+            save();
+            syncCardToStickies(data[col][i].id);
+            renderKanban();
+            updateDashboard();
+            updateTabCounts();
+          }
+          if (!n) tx.textContent = old;
+        }
+        tx.addEventListener('blur', fin, { once: true });
+        tx.addEventListener('keydown', e => {
+          if (e.key === 'Enter') { e.preventDefault(); tx.blur(); }
+          if (e.key === 'Escape') { tx.textContent = old; tx.blur(); }
+        });
+      });
+      el.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        window.electronAPI.showKanbanContextMenu({
+          cardId: card.id,
+          col,
+          x: Math.round(e.x),
+          y: Math.round(e.y),
+        });
+      });
+      el.querySelector('.e-pop').onclick = e => {
+        e.stopPropagation();
+        openNoteForCard(card, col);
+      };
+      ct.appendChild(el);
+    });
+    // Column drag-over for moving between columns
+    ct.ondragover = e => {
+      e.preventDefault();
+      const dc = e.dataTransfer?.getData('col');
+      if (dc && dc !== col) ct.style.outline = '2px dashed var(--accent)';
+    };
+    ct.ondragleave = () => { ct.style.outline = ''; };
+    ct.ondrop = e => {
+      e.preventDefault();
+      ct.style.outline = '';
+      const dc = e.dataTransfer?.getData('col');
+      const di = parseInt(e.dataTransfer?.getData('idx') || '-1');
+      const id = e.dataTransfer?.getData('id');
+      if (dc && di >= 0 && dc !== col && id) {
+        moveCardBetween(dc, col, id);
+      }
+    };
+    // Update count
+    const cnt = document.getElementById('cnt-' + col);
+    if (cnt) cnt.textContent = (data[col] || []).length;
+  }
+}
+function esc(s) { return (s || '').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+function moveCardBetween(fromCol, toCol, cardId) {
+  const idx = data[fromCol].findIndex(c => c.id === cardId);
+  if (idx < 0) return;
+  const [cd] = data[fromCol].splice(idx, 1);
+  data[toCol].push(cd);
+  activeKanbanCat = toCol;
+  document.querySelectorAll('.cat-tab').forEach(t => t.classList.remove('active'));
+  const tab = document.querySelector('.cat-tab[data-cat="' + toCol + '"]');
+  if (tab) tab.classList.add('active');
+  if (dragState) dragState.handled = true;
+  renderKanban();
+  updateDashboard();
+  updateTabCounts();
+  save();
+}
+
+function onDS(e) {
+  const card = data[e.target.dataset.col][parseInt(e.target.dataset.idx)];
+  dragState = { card, col: e.target.dataset.col, id: e.target.dataset.id, lastMouseX: e.clientX, lastMouseY: e.clientY, handled: false };
+  e.dataTransfer.setData('col', e.target.dataset.col);
+  e.dataTransfer.setData('idx', e.target.dataset.idx);
+  e.dataTransfer.setData('id', e.target.dataset.id);
+  e.dataTransfer.effectAllowed = 'move';
+  window.electronAPI.startDragTracking();
+  setTimeout(() => this.classList.add('dragging'), 0);
+}
+function onDE(e) {
+  this.classList.remove('dragging');
+  document.querySelectorAll('.col-cards').forEach(el => el.style.outline = '');
+
+  // Check drag tracking result: was cursor outside when drag ended?
+  window.electronAPI.stopDragTracking().then(result => {
+    if (dragState && !dragState.handled && result && result.outside) {
+      dragState.lastMouseX = result.x;
+      dragState.lastMouseY = result.y;
+      dragState._isScreenCoords = true;
+      dropAsSticky();
+    }
+    dragState = null;
+  });
+}
+function onDrop(e) {
+  e.preventDefault();
+  const fc = e.dataTransfer.getData('col');
+  const fi = parseInt(e.dataTransfer.getData('idx') || '-1');
+  const id = e.dataTransfer.getData('id');
+  const tc = this.dataset.col;
+  const ti = parseInt(this.dataset.idx || '-1');
+  // Same-col reorder
+  if (fc && fi >= 0 && tc === fc && ti !== fi && id) {
+    const idx = data[fc].findIndex(c => c.id === id);
+    if (idx >= 0 && idx !== ti) {
+      const [cd] = data[fc].splice(idx, 1);
+      data[tc].splice(ti, 0, cd);
+      if (dragState) dragState.handled = true;
+      renderKanban();
+      save();
+    }
+  }
+}
+
+// ===== Context Menu =====
+function bindCtx() {
+  if (window.electronAPI.onKanbanOpenDetail) {
+    window.electronAPI.onKanbanOpenDetail((cardId, col) => {
+      const location = findCardLocation(cardId, col);
+      if (location) openNoteForCard(location.card, location.col);
+    });
+  }
+  if (window.electronAPI.onKanbanContextCommand) {
+    window.electronAPI.onKanbanContextCommand(async ({ type, cardId, col, color }) => {
+      const location = findCardLocation(cardId, col);
+      if (!location) return;
+      if (type === 'color') {
+        location.card.noteColor = color || null;
+        syncCardToStickies(location.card.id);
+        renderKanban();
+        updateDashboard();
+        updateTabCounts();
+        await save();
+        return;
+      }
+      if (type === 'delete') {
+        await window.electronAPI.deleteKanbanCard(location.card.id, location.col);
+      }
+    });
+  }
+}
+
+// ===== Note Overlay =====
+function bindNoteOverlay() {
+  document.getElementById('noteOverlay').onclick = e => {
+    if (e.target === e.currentTarget) closeNoteModal();
+  };
+}
+function openNoteForCard(card, col) {
+  noteEditing = { card, col };
+  document.getElementById('npTitle').value = cardTitle(card);
+  document.getElementById('npText').value = cardDesc(card);
+  document.getElementById('npStatus').value = col;
+  document.getElementById('npColor').value = card.noteColor || '';
+  document.getElementById('noteOverlay').classList.add('show');
+}
+function closeNoteModal() {
+  document.getElementById('noteOverlay').classList.remove('show');
+  noteEditing = null;
+}
+function saveNoteModal() {
+  if (!noteEditing) return;
+  const { card, col, isSticky } = noteEditing;
+  const title = document.getElementById('npTitle').value.trim();
+  if (!title) { closeNoteModal(); return; }
+  const desc = document.getElementById('npText').value.trim();
+  const newStatus = document.getElementById('npStatus').value;
+  const newColor = document.getElementById('npColor').value || null;
+  card.title = title;
+  card.desc = desc;
+  card.noteColor = newColor;
+  if (isSticky) {
+    // Desktop copy: only status changes flow back to the original kanban card via _refId
+    const refId = card._refId || card.id;
+    let origCol = null;
+    let origIdx = -1;
+    for (const col of KANBAN_COLS) {
+      const i = data[col].findIndex(c => c.id === refId);
+      if (i >= 0) { origCol = col; origIdx = i; break; }
+    }
+    if (origCol && origIdx >= 0 && newStatus !== origCol) {
+      const [orig] = data[origCol].splice(origIdx, 1);
+      if (!data[newStatus]) data[newStatus] = [];
+      data[newStatus].push(orig);
+    }
+    card._stickyStatus = newStatus;
+    card._sourceCol = newStatus;
+    // Push to floating window
+    window.electronAPI.syncStickyData(card);
+    renderKanban();
+    renderStickies();
+    updateDashboard();
+    updateTabCounts();
+  } else {
+    // Kanban card: handle column change
+    syncCardToStickies(card.id);
+    if (newStatus !== col) {
+      const idx = data[col].indexOf(card);
+      if (idx >= 0) {
+        data[col].splice(idx, 1);
+        data[newStatus].push(card);
+      }
+    }
+    renderKanban();
+    updateDashboard();
+    updateTabCounts();
+  }
+  save();
+  closeNoteModal();
+}
+
+// ===== Stickies Page =====
+function renderStickies() {
+  const list = document.getElementById('stikyList');
+  const stickies = data._stickies || [];
+  if (!stickies.length) {
+    list.innerHTML = '<div class="empty"><div class="eico">&#x25C6;</div><p>暂无桌面便签，去看板将任务卡片拖拽到窗口外即可创建浮动便签</p></div>';
+    return;
+  }
+  list.innerHTML = stickies.map(c => {
+    const status = c._sourceCol || c._stickyStatus || 'todo';
+    const title = cardTitle(c);
+    const statusMap = { todo: '待办', inProgress: '进行中', done: '已完成' };
+    const statusLabel = statusMap[status] || '待办';
+    const collIcon = c._collapsed ? '&#x25BC;' : '&#x25B2;';
+    return `<div class="stiky-row" data-id="${c.id}">
+      <span class="stiky-dot ${status}"></span>
+      <span style="font-size:12px;color:var(--text3);flex-shrink:0">${collIcon}</span>
+      <div class="stiky-text">${esc(title)}</div>
+      <div style="font-size:11px;color:var(--text3);flex-shrink:0;margin-right:8px">${statusLabel}</div>
+      <div class="stiky-btns">
+        <button class="stiky-act e-open-sticky" data-id="${c.id}">&#x25A3; 聚焦</button>
+        <button class="stiky-act e-remove-sticky" data-id="${c.id}">&#x2716; 移除</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Bind "focus" - bring floating sticky window to front
+  list.querySelectorAll('.e-open-sticky').forEach(b => {
+    b.onclick = async () => {
+      const cd = data._stickies.find(x => x.id === b.dataset.id);
+      if (cd) {
+        const sx = cd._stickyX || 300;
+        const sy = cd._stickyY || 200;
+        await window.electronAPI.openSticky(cd, sx, sy);
+      }
+    };
+  });
+
+  // Bind "remove from desktop" - only remove the sticky window, no trash
+  list.querySelectorAll('.e-remove-sticky').forEach(b => {
+    b.onclick = async () => {
+      await window.electronAPI.removeFromDesktop(b.dataset.id);
+      const idx = data._stickies.findIndex(x => x.id === b.dataset.id);
+      if (idx >= 0) {
+        data._stickies.splice(idx, 1);
+        save();
+        renderStickies();
+      }
+    };
+  });
+}
+
+function changeStickyStatus(cardId, newStatus) {
+  const idx = data._stickies.findIndex(c => c.id === cardId);
+  if (idx < 0) return;
+
+  const sticky = data._stickies[idx];
+  const refId = sticky._refId || sticky.id;
+
+  // Find the original kanban card by _refId (user may have moved it manually)
+  let origCol = null;
+  let origIdx = -1;
+  for (const col of KANBAN_COLS) {
+    const i = data[col].findIndex(c => c.id === refId);
+    if (i >= 0) { origCol = col; origIdx = i; break; }
+  }
+
+  // Move original kanban card to the new status
+  if (origCol && origIdx >= 0 && origCol !== newStatus) {
+    const [orig] = data[origCol].splice(origIdx, 1);
+    if (!data[newStatus]) data[newStatus] = [];
+    data[newStatus].push(orig);
+  }
+
+  // Update sticky metadata
+  sticky._stickyStatus = newStatus;
+  sticky._sourceCol = newStatus;
+
+  // Push update to floating sticky window
+  window.electronAPI.syncStickyData(sticky);
+
+  renderKanban();
+  renderStickies();
+  updateDashboard();
+  updateTabCounts();
+  save();
+}
+
+// Sync kanban card changes (title, color, desc) to all linked desktop stickies
+function syncCardToStickies(cardId) {
+  // Find the original kanban card
+  let orig = null;
+  for (const col of KANBAN_COLS) {
+    orig = (data[col] || []).find(c => c.id === cardId);
+    if (orig) break;
+  }
+  if (!orig) return;
+
+  // Find all stickies tied to this card
+  const stickies = data._stickies || [];
+  for (const s of stickies) {
+    if (s._refId === cardId || s.id === cardId) {
+      // Sync title, desc, color from kanban card to sticky
+      s.title = orig.title;
+      s.desc = orig.desc || '';
+      s.noteColor = orig.noteColor || null;
+      save();
+      window.electronAPI.syncStickyData(s);
+    }
+  }
+}
+
+function delSticky(id) {
+  // No longer used directly - delete goes through deleteSticky IPC
+  const idx = data._stickies.findIndex(c => c.id === id);
+  if (idx < 0) return;
+  const [cd] = data._stickies.splice(idx, 1);
+  trash.push({
+    id: cd.id,
+    title: cardTitle(cd),
+    closedAt: new Date().toISOString()
+  });
+  window.electronAPI.saveTrash(trash);
+  renderStickies();
+  updateTrashBadge();
+  save();
+}
+
+// ===== Trash =====
+const STATUS_LABEL = { todo: '待办', inProgress: '进行中', done: '已完成' };
+async function renderTrash() {
+  const list = document.getElementById('trashList');
+  if (!trash.length) {
+    list.innerHTML = '<div class="empty"><div class="eico">&#x2298;</div><p>回收站为空</p></div>';
+    return;
+  }
+  list.innerHTML = trash.map((t, i) => {
+    const srcCol = t._sourceCol || 'todo';
+    const srcLabel = STATUS_LABEL[srcCol] || '待办';
+    return `<div class="trash-item">
+      <div class="trash-info">
+        <div class="trash-title">${esc(t.title || '无标题')}
+          <span style="font-size:10px;color:var(--text3);margin-left:6px;background:rgba(0,0,0,0.05);padding:1px 6px;border-radius:4px">${srcLabel}</span>
+        </div>
+        <div class="trash-time">${new Date(t.closedAt).toLocaleString('zh-CN')}</div>
+      </div>
+      <div class="trash-btns">
+        <button class="trash-btn" onclick="restoreTrash(${i})">恢复</button>
+        <button class="trash-btn danger" onclick="delTrash(${i})">永久删除</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+async function restoreTrash(i) {
+  const t = trash.splice(i, 1)[0];
+  const targetCol = t._sourceCol || 'todo';
+  if (!data[targetCol]) data[targetCol] = [];
+  data[targetCol].unshift({
+    id: t.id,
+    title: t.title || '',
+    desc: t.desc || '',
+    time: t.time || new Date().toLocaleDateString('zh-CN'),
+    noteColor: t.noteColor || null
+  });
+  await window.electronAPI.saveTrash(trash);
+  renderKanban();
+  renderTrash();
+  updateDashboard();
+  updateTrashBadge();
+  updateTabCounts();
+  save();
+}
+async function delTrash(i) {
+  trash.splice(i, 1);
+  await window.electronAPI.saveTrash(trash);
+  renderTrash();
+  updateTrashBadge();
+}
+async function clearTrash() {
+  trash = [];
+  await window.electronAPI.saveTrash(trash);
+  renderTrash();
+  updateTrashBadge();
+}
+
+// ===== Settings =====
+function bindSettings() {
+  document.getElementById('themeSelect').onclick = async e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    const th = b.dataset.theme;
+    applyTheme(th);
+    document.querySelectorAll('#themeSelect button').forEach(x => x.classList.toggle('active', x === b));
+    settings.theme = th;
+    await window.electronAPI.saveSettings(settings);
+  };
+  document.getElementById('togPin').onchange = async e => {
+    settings.alwaysOnTop = e.target.checked;
+    await window.electronAPI.setAlwaysOnTop(settings.alwaysOnTop);
+    await window.electronAPI.saveSettings(settings);
+  };
+  document.getElementById('btnExport').onclick = () => {
+    const j = JSON.stringify({ data, settings }, null, 2);
+    navigator.clipboard.writeText(j).catch(() => {});
+  };
+  document.getElementById('btnImport').onclick = () => {
+    const j = prompt('粘贴 JSON:');
+    if (!j) return;
+    try {
+      const im = JSON.parse(j);
+      if (im.data) { data = im.data; migrateData(); }
+      if (im.settings) {
+        settings = im.settings;
+        applyTheme(settings.theme);
+        document.getElementById('togPin').checked = settings.alwaysOnTop;
+      }
+      renderAll();
+      save();
+      window.electronAPI.saveSettings(settings);
+    } catch {}
+  };
+  document.getElementById('btnClear').onclick = async () => {
+    for (const s of data._stickies || []) {
+      await window.electronAPI.uiRemoveSticky(s.id);
+    }
+    data = { todo: [], inProgress: [], done: [], _stickies: [] };
+    trash = [];
+    renderAll();
+    save();
+    window.electronAPI.saveTrash(trash);
+  };
+}
+function applyTheme(th) {
+  document.body.dataset.theme = th;
+  document.querySelectorAll('#themeSelect button').forEach(b => b.classList.toggle('active', b.dataset.theme === th));
+}
+
+init();
+</script>
+
+<!-- ===== Close Dialog ===== -->
+<div class="dlg-backdrop" id="closeDlgBackdrop" style="display:none">
+  <div class="dlg-box">
+    <div class="dlg-icon">&#x25C6;</div>
+    <div class="dlg-title">关闭 Kanota</div>
+    <div class="dlg-desc">选择"最小化到托盘"可将应用隐藏到系统托盘继续运行；选择"退出"将关闭所有桌面便签并退出程序。</div>
+    <div class="dlg-btns">
+      <button class="dlg-btn" id="dlgTray">
+        <span class="dlg-btn-ico">&#x2014;</span>
+        <span>最小化到托盘</span>
+      </button>
+      <button class="dlg-btn dlg-quit" id="dlgQuit">
+        <span class="dlg-btn-ico">&#x2716;</span>
+        <span>退出程序</span>
+      </button>
+      <button class="dlg-btn dlg-cancel" id="dlgCancel">
+        <span>取消</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
