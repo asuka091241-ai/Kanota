@@ -1,5 +1,5 @@
 // GitHub auto-updater for Kanota portable
-// Downloads .zip (preferred) or .exe from release assets, replaces current
+// Downloads zip, extracts, replaces all app files (keeps data/), restarts
 const { app, dialog, shell } = require('electron');
 const https = require('https');
 const http = require('http');
@@ -19,17 +19,16 @@ function saveCache(c) {
   try { fs.writeFileSync(CACHE_FILE, JSON.stringify(c), 'utf-8'); } catch (_) {}
 }
 
-function httpGet(url, binary) {
+function httpGet(url) {
   return new Promise((resolve, reject) => {
     const mod = url.startsWith('https') ? https : http;
-    const opts = { headers: { 'User-Agent': 'Kanota-Updater/1.0', 'Accept': binary ? 'application/octet-stream' : 'application/json' } };
-    mod.get(url, opts, (res) => {
+    mod.get(url, { headers: { 'User-Agent': 'Kanota-Updater/1.0' } }, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location)
-        return httpGet(res.headers.location, binary).then(resolve).catch(reject);
+        return httpGet(res.headers.location).then(resolve).catch(reject);
       if (res.statusCode !== 200) return reject(new Error('HTTP ' + res.statusCode));
       const chunks = [];
       res.on('data', c => chunks.push(c));
-      res.on('end', () => resolve(binary ? Buffer.concat(chunks) : JSON.parse(Buffer.concat(chunks).toString('utf-8'))));
+      res.on('end', () => resolve(JSON.parse(Buffer.concat(chunks).toString('utf-8'))));
     }).on('error', reject);
   });
 }
@@ -65,61 +64,8 @@ function isPackaged() {
   return app.isPackaged && !process.defaultApp;
 }
 
-function extractZip(zipPath, outDir) {
-  return new Promise((resolve, reject) => {
-    exec(`powershell -NoProfile -Command "Expand-Archive -Path '${zipPath}' -DestinationPath '${outDir}' -Force"`, (err) => {
-      if (err) return reject(new Error('extract failed: ' + (err.message || '')));
-      resolve();
-    });
-  });
-}
-
-function findExeInDir(dir) {
-  function walk(d) {
-    let items;
-    try { items = fs.readdirSync(d); } catch (_) { return null; }
-    for (const name of items) {
-      const full = path.join(d, name);
-      if (name === 'Kanota.exe') return full;
-      try { if (fs.statSync(full).isDirectory()) { const f = walk(full); if (f) return f; } } catch (_) {}
-    }
-    return null;
-  }
-  return walk(dir);
-}
-
-function writeBatAndInstall(finalExe, tmpDir, dlFile, extractDir, win) {
-  const currentExe = app.getPath('exe');
-  const batchFile = path.join(tmpDir, 'kanota-update.bat');
-  const cleanup = [];
-  if (dlFile) cleanup.push(`if exist "${dlFile}" del /f /q "${dlFile}" 2>nul`);
-  if (extractDir) cleanup.push(`if exist "${extractDir}" rmdir /s /q "${extractDir}" 2>nul`);
-  const bat = [
-    '@echo off',
-    'chcp 65001 >nul',
-    'echo Kanota updating...',
-    ':wait',
-    'timeout /t 2 /nobreak >nul',
-    `if exist "${currentExe}" goto :wait`,
-    `move /Y "${finalExe}" "${currentExe}"`,
-    'if %errorlevel% neq 0 (',
-    '  echo Replace failed! Please update manually.',
-    '  pause',
-    ') else (',
-    '  echo Update complete, starting...',
-    `  start "" "${currentExe}"`,
-    ')',
-    ...cleanup,
-    'del /f /q "%~f0"',
-  ].join('\r\n');
-  fs.writeFileSync(batchFile, bat, 'utf-8');
-  if (win && !win.isDestroyed()) {
-    win.webContents.send('update:status', 'Restarting...');
-    win.webContents.send('update:progress', 100);
-    win.setProgressBar(1);
-  }
-  exec(`start "" cmd /c "${batchFile}"`, { detached: true, stdio: 'ignore' });
-  app.quit();
+function getAppDir() {
+  return path.dirname(app.getPath('exe'));
 }
 
 async function checkForUpdates(silent) {
@@ -136,7 +82,7 @@ async function checkForUpdates(silent) {
     saveCache({ lastCheck: now, latestVersion });
     if (cmpVersion(latestVersion, currentVersion) <= 0) {
       if (!silent) {
-        await dialog.showMessageBox({ type: 'info', title: 'Kanota Update', message: 'v' + currentVersion + ' is the latest', buttons: ['OK'] });
+        await dialog.showMessageBox({ type: 'info', title: 'Kanota', message: 'v' + currentVersion + ' is the latest', buttons: ['OK'] });
       }
       return { currentVersion, latestVersion, upToDate: true };
     }
@@ -152,12 +98,10 @@ async function checkForUpdates(silent) {
 async function downloadAndInstall(release, win) {
   const tmpDir = app.getPath('temp');
   let asset = (release.assets || []).find(a => a.name && a.name.toLowerCase().endsWith('.zip'));
-  const isZip = !!asset;
-  if (!asset) asset = (release.assets || []).find(a => a.name && a.name.toLowerCase().endsWith('.exe'));
-  if (!asset) throw new Error('No .zip or .exe found in release assets');
+  if (!asset) throw new Error('No .zip found in release assets');
 
-  const dlFile = path.join(tmpDir, asset.name);
-  const extractDir = isZip ? path.join(tmpDir, 'kanota-' + release.tag_name) : null;
+  const zipFile = path.join(tmpDir, asset.name);
+  const extractDir = path.join(tmpDir, 'kanota-update-' + release.tag_name);
 
   if (win && !win.isDestroyed()) {
     win.setProgressBar(0.01);
@@ -165,46 +109,98 @@ async function downloadAndInstall(release, win) {
     win.webContents.send('update:status', 'Downloading...');
   }
 
-  let finalExe;
   try {
-    await download(asset.browser_download_url, dlFile, (pct) => {
+    // 1. Download zip
+    await download(asset.browser_download_url, zipFile, (pct) => {
       if (win && !win.isDestroyed()) {
-        const overall = isZip ? Math.floor(pct * 0.8) : pct;
-        win.setProgressBar(overall / 100);
-        win.webContents.send('update:progress', overall);
+        win.setProgressBar(pct / 100);
+        win.webContents.send('update:progress', pct);
       }
     });
 
-    if (isZip) {
-      if (win && !win.isDestroyed()) {
-        win.webContents.send('update:status', 'Extracting...');
-        win.webContents.send('update:progress', 82);
+    // 2. Extract
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('update:status', 'Extracting...');
+      win.webContents.send('update:progress', 102); // show done
+      win.setProgressBar(102 / 100);
+    }
+    if (fs.existsSync(extractDir)) fs.rmSync(extractDir, { recursive: true, force: true });
+    fs.mkdirSync(extractDir, { recursive: true });
+    await new Promise((resolve, reject) => {
+      exec(`powershell -NoProfile -Command "Expand-Archive -Path '${zipFile}' -DestinationPath '${extractDir}' -Force"`, (err) => {
+        if (err) reject(new Error('Extract failed: ' + err.message));
+        else resolve();
+      });
+    });
+
+    // 3. Find the actual app folder (may be nested inside extracted dir)
+    const appDir = getAppDir();
+    let newAppDir = extractDir;
+    // Check if extracted contents are nested (e.g. extract/win-unpacked/...)
+    const entries = fs.readdirSync(extractDir);
+    if (entries.length === 1 && fs.statSync(path.join(extractDir, entries[0])).isDirectory()) {
+      newAppDir = path.join(extractDir, entries[0]);
+      // If that also has a single subdir (double nested), go one more level
+      const sub = fs.readdirSync(newAppDir);
+      if (sub.length === 1 && fs.statSync(path.join(newAppDir, sub[0])).isDirectory()) {
+        const sub2 = path.join(newAppDir, sub[0]);
+        if (fs.existsSync(path.join(sub2, 'Kanota.exe'))) newAppDir = sub2;
       }
-      if (fs.existsSync(extractDir)) fs.rmSync(extractDir, { recursive: true, force: true });
-      fs.mkdirSync(extractDir, { recursive: true });
-      await extractZip(dlFile, extractDir);
-      finalExe = findExeInDir(extractDir);
-      if (!finalExe) throw new Error('Kanota.exe not found in zip');
-      try { fs.unlinkSync(dlFile); } catch (_) {}
-    } else {
-      finalExe = dlFile;
+    }
+    // Verify the dir contains Kanota.exe
+    if (!fs.existsSync(path.join(newAppDir, 'Kanota.exe'))) {
+      throw new Error('Kanota.exe not found in extracted files');
     }
 
     if (!isPackaged()) {
       await dialog.showMessageBox({
         type: 'info', title: 'Download Complete',
         message: release.tag_name + ' ready',
-        detail: 'Dev mode: manual replace needed.\n\nExe: ' + finalExe,
-        buttons: ['Open location', 'OK'],
-      }).then(({ response }) => { if (response === 0) shell.showItemInFolder(finalExe); });
+        detail: 'Dev mode: would replace files in:\n' + appDir + '\n\nNew files at:\n' + newAppDir,
+        buttons: ['Open new version', 'OK'],
+      }).then(({ response }) => { if (response === 0) shell.openPath(newAppDir); });
       if (win && !win.isDestroyed()) win.setProgressBar(-1);
       return;
     }
 
-    writeBatAndInstall(finalExe, tmpDir, null, extractDir, win);
+    // 4. Build batch script: quit → replace all files → restart
+    const batchFile = path.join(tmpDir, 'kanota-update.bat');
+    const exe = app.getPath('exe');
+    const bat = [
+      '@echo off',
+      'chcp 65001 >nul',
+      'echo Kanota updating...',
+      ':wait',
+      'timeout /t 2 /nobreak >nul',
+      `if exist "${exe}" goto :wait`,
+      'echo Copying new files...',
+      // Copy all new files over old ones, skip data/ to preserve user data
+      `robocopy "${newAppDir}" "${appDir}" /E /XD data /IS /IT >nul`,
+      'if %errorlevel% geq 8 (',
+      '  echo Update failed!',
+      '  pause',
+      '  exit /b 1',
+      ')',
+      'echo Update complete! Starting Kanota...',
+      `start "" "${exe}"`,
+      // Cleanup temp files
+      `rmdir /s /q "${extractDir}" 2>nul`,
+      `del /f /q "${zipFile}" 2>nul`,
+      'del /f /q "%~f0"',
+    ].join('\r\n');
+    fs.writeFileSync(batchFile, bat, 'utf-8');
+
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('update:status', 'Restarting...');
+      win.webContents.send('update:progress', 100);
+      win.setProgressBar(1);
+    }
+
+    exec(`start "" cmd /c "${batchFile}"`, { detached: true, stdio: 'ignore' });
+    app.quit();
   } catch (e) {
-    try { if (fs.existsSync(dlFile)) fs.unlinkSync(dlFile); } catch (_) {}
-    try { if (extractDir && fs.existsSync(extractDir)) fs.rmSync(extractDir, { recursive: true, force: true }); } catch (_) {}
+    try { if (fs.existsSync(zipFile)) fs.unlinkSync(zipFile); } catch (_) {}
+    try { if (fs.existsSync(extractDir)) fs.rmSync(extractDir, { recursive: true, force: true }); } catch (_) {}
     if (win && !win.isDestroyed()) win.setProgressBar(-1);
     throw e;
   }
