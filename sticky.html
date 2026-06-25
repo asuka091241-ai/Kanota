@@ -18,20 +18,61 @@ body{font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;font-size
 .bar-title{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:rgba(0,0,0,0.75);flex:1}
 .bar-r{display:flex;gap:2px;flex-shrink:0}
 .btn{width:24px;height:24px;border:none;background:transparent;border-radius:4px;cursor:pointer;font-size:12px;color:rgba(0,0,0,0.4);display:grid;place-items:center;transition:background .12s}
+#btnFold::after{content:'';width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:7px solid rgba(0,0,0,0.35);border-radius:1px;transition:transform .2s ease,border-color .12s}
+#btnFold.folded::after{transform:rotate(180deg)}
+#btnFold:hover{background:rgba(0,0,0,0.06)}
+#btnFold:hover::after{border-bottom-color:rgba(0,0,0,0.55)}
 .btn:hover{background:rgba(0,0,0,0.08)}
 .btn.on{color:#f59e0b}
-.flow{font-size:11px;font-weight:600;padding:0 7px;width:auto;color:var(--fc,#f59e0b);background:rgba(0,0,0,0.05)}
-.flow:hover{background:rgba(0,0,0,0.1)}
-
+/* Pin icon SVG */
+#btnPin{position:relative}
+#btnPin svg{width:14px;height:14px;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;transition:opacity .15s}
+#btnPin .pin-ol path{fill:rgba(0,0,0,0.18)}
+#btnPin .pin-fill path{fill:rgba(0,0,0,0.4)}
+#btnPin .pin-fill{opacity:0}
+#btnPin.on .pin-ol{opacity:0}
+#btnPin.on .pin-fill{opacity:1}
+#btnPin:hover .pin-ol path{fill:rgba(0,0,0,0.3)}
+#btnPin:hover .pin-fill path{fill:rgba(0,0,0,0.52)}
+#btnPin.on:hover .pin-fill path{fill:rgba(0,0,0,0.58)}
+.btn.on{color:#f59e0b}
 /* ===== Content ===== */
-.content{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.content{flex:1;display:flex;flex-direction:column;overflow:visible;position:relative}
 .content.hide{display:none}
-.c-title{padding:6px 14px 0;font-size:15px;font-weight:700;line-height:1.3;color:rgba(0,0,0,0.85);word-break:break-word;animation:fadeIn .25s ease}
-.c-divider{height:1px;background:rgba(0,0,0,0.06);margin:8px 14px 0;flex-shrink:0;animation:fadeIn .3s ease}
-.c-body{flex:1;padding:6px 14px 12px;overflow-y:auto;font-size:12px;line-height:1.6;color:rgba(0,0,0,0.55);word-break:break-word;animation:fadeIn .35s ease}
-.c-time{padding:0 14px 8px;font-size:10px;color:rgba(0,0,0,0.25);animation:fadeIn .4s ease}
-@keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
-
+.c-card{margin:8px 14px 0;border:1px solid rgba(0,0,0,0.08);border-radius:10px;background:rgba(0,0,0,0.02);animation:fadeIn .3s ease}
+.c-title{padding:10px 12px 6px;font-size:16px;font-weight:800;line-height:1.3;color:rgba(0,0,0,0.88);word-break:break-word}
+.c-title:empty{display:none}
+.c-sep{height:1px;background:rgba(0,0,0,0.06);margin:0 12px;flex-shrink:0}
+.c-title:empty+.c-sep{display:none}
+.c-body{padding:6px 12px 8px;font-size:12.5px;line-height:1.65;color:rgba(0,0,0,0.6);word-break:break-word}
+.c-body:empty{display:none}
+.c-time{font-size:10px;color:rgba(0,0,0,0.35);padding:0 12px 8px}
+.c-time:empty{display:none}
+.st-subtasks{padding:8px 0 6px;display:flex;flex-direction:column;gap:4px;animation:fadeIn .4s ease;border-top:1px solid rgba(0,0,0,0.05);margin:4px 14px 0}
+.st-subtasks:empty{display:none;border-top:none;margin:0}
+.st-due{padding:4px 14px 8px;font-size:10px;display:flex;align-items:center;gap:4px;animation:fadeIn .45s ease}
+.st-due:empty{display:none}
+.st-due.overdue{color:rgba(0,0,0,0.45)}
+.st-due.today{color:rgba(0,0,0,0.35)}
+.st-due-label{font-weight:600;color:rgba(0,0,0,0.3);font-size:9px;letter-spacing:.03em}
+.st-due.upcoming{color:rgba(0,0,0,0.25)}
+/* Flow button at bottom-right */
+.flow{position:absolute;right:12px;bottom:8px;display:none;font-size:11px;font-weight:600;padding:2px 8px;width:auto;color:var(--fc,#f59e0b);background:rgba(0,0,0,0.05);border:none;border-radius:4px;font-family:inherit;cursor:pointer;transition:background .15s;z-index:5}
+.flow:hover{background:rgba(0,0,0,0.1)}
+/* Subtask expand toggle in focus */
+.st-sub-toggle{display:none;margin:0 0 4px 10px;padding:0;border:none;background:transparent;color:rgba(0,0,0,0.15);font-size:16px;font-family:inherit;cursor:pointer;transition:color .15s;align-self:flex-start}
+.st-sub-toggle:hover{color:rgba(0,0,0,0.35)}
+body.focus .st-sub-toggle{display:block}
+body.focus .st-subtasks.folded{display:none}
+.st-sub-toggle svg{width:18px;height:18px;transition:transform .2s}
+.st-sub-toggle.open svg{transform:rotate(180deg)}
+/* ===== Subtask items ===== */
+.st-sub-item{display:flex;align-items:center;justify-content:flex-start;gap:6px;font-size:11px;padding:3px 0;background:transparent;border-radius:4px;transition:all .12s}
+.st-sub-item:hover{background:rgba(0,0,0,0.03)}
+.st-sub-item.done .st-sub-text{text-decoration:line-through;opacity:.35}
+.st-sub-item input[type="checkbox"]{width:13px;height:13px;cursor:pointer;accent-color:#3b82f6;flex-shrink:0}
+.st-sub-text{flex:1;color:rgba(0,0,0,0.6);word-break:break-word;line-height:1.4}
+.st-sub-time{font-size:9px;color:rgba(0,0,0,0.3);flex-shrink:0;margin-left:4px}
 /* ===== Pomodoro Strip ===== */
 .pomo-strip{flex-shrink:0;height:0;overflow:hidden;display:flex;flex-direction:column;border-top:0px solid rgba(0,0,0,0.06);transition:height .25s cubic-bezier(.4,0,.2,1),border-top-width .25s,padding .25s}
 .pomo-strip.open{height:52px;border-top-width:1px}
@@ -92,19 +133,21 @@ body{font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;font-size
 body.focus .win{border-left-width:0}
 body.focus .dot,
 body.focus .status-text,
-body.focus #btnFlow,
-body.focus #btnPin,
 body.focus #btnFold,
 body.focus #btnPomo{display:none !important}
 body.focus .pomo-strip{display:none !important}
-body.focus .c-divider,
-body.focus .c-title,
 body.focus .c-time{display:none}
+body.focus #btnFlow{display:none !important}
+body.focus .c-card{border:none;background:transparent;margin:0}
+body.focus .c-title{display:none !important}
+body.focus .c-sep{display:none !important}
 body.focus .content.hide{display:flex !important}
 body.focus .bar-r{gap:6px;align-items:center}
-body.focus .bar-title{font-size:14px;font-weight:700;display:block !important}
-body.focus .c-body{font-size:12.5px;color:rgba(0,0,0,0.65);padding:10px 14px 14px;border-top:1px solid rgba(0,0,0,0.06);margin:0 10px}
-body.focus .focus-time{align-self:center}
+.focus-bar-sep{height:1px;background:rgba(0,0,0,0.06);display:none;flex-shrink:0}
+body.focus .focus-bar-sep{display:block}
+body.focus .bar-title{font-size:13px;font-weight:700;display:block !important}
+body.focus .c-body{font-size:12.5px;color:rgba(0,0,0,0.65);padding:6px 14px 14px}
+.focus-time{align-self:center}
 body.focus .focus-btn{align-self:center}
 /* Show focus-time on bar when pomo panel is opened */
 body.focus.pomo-active .focus-time{display:inline}
@@ -144,9 +187,11 @@ body.focus.pomo-active .focus-time{display:inline}
   body{color:#f5f5f7}
   .bar-title{color:rgba(255,255,255,0.75)}
   .status-text{color:rgba(255,255,255,0.5)}
-  .c-title{color:rgba(255,255,255,0.85)}
+  .c-title{color:rgba(255,255,255,0.9)}
+  .c-card{border-color:rgba(255,255,255,0.08);background:rgba(255,255,255,0.025)}
+  .c-sep{background:rgba(255,255,255,0.06)}
   .c-body{color:rgba(255,255,255,0.55)}
-  .c-time{color:rgba(255,255,255,0.25)}
+  .c-time{color:rgba(255,255,255,0.35)}
   .c-divider{background:rgba(255,255,255,0.08)}
   .btn{color:rgba(255,255,255,0.4)}
   .btn:hover{background:rgba(255,255,255,0.1)}
@@ -169,9 +214,31 @@ body.focus.pomo-active .focus-time{display:inline}
   .ps-gear:hover{background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.4)}
   .focus-btn{color:rgba(255,255,255,0.4)}
   .focus-btn:hover{background:rgba(255,255,255,0.1)}
-  body.focus .c-body{color:rgba(255,255,255,0.65);border-top-color:rgba(255,255,255,0.06)}
+  body.focus .c-body{color:rgba(255,255,255,0.65)}
   .focus-time.work{color:#ef4444}
   .focus-time.break{color:#10b981}
+}
+@media(prefers-color-scheme:dark){
+  .st-sub-item{background:rgba(255,255,255,0.04)}
+  .st-sub-item:hover{background:rgba(255,255,255,0.08)}
+  .st-sub-text{color:rgba(255,255,255,0.5)}
+  .st-due.overdue{color:rgba(255,255,255,0.4)}
+  .st-due.today{color:rgba(255,255,255,0.3)}
+  .st-due-label{color:rgba(255,255,255,0.3)}
+  .st-due.upcoming{color:rgba(255,255,255,0.2)}
+  .flow{background:rgba(255,255,255,0.08)}
+  .flow:hover{background:rgba(255,255,255,0.14)}
+  .st-sub-toggle{border-color:rgba(255,255,255,0.1);color:rgba(255,255,255,0.15)}
+  .st-sub-toggle:hover{color:rgba(255,255,255,0.35)}
+  .st-sub-time{color:rgba(255,255,255,0.2)}
+  #btnFold::after{border-bottom-color:rgba(255,255,255,0.25)}
+  #btnFold:hover::after{border-bottom-color:rgba(255,255,255,0.5)}
+  #btnPin .pin-ol path{fill:rgba(255,255,255,0.18)}
+  #btnPin .pin-fill path{fill:rgba(255,255,255,0.4)}
+  #btnPin:hover .pin-ol path{fill:rgba(255,255,255,0.3)}
+  #btnPin:hover .pin-fill path{fill:rgba(255,255,255,0.52)}
+  #btnPin.on:hover .pin-fill path{fill:rgba(255,255,255,0.58)}
+  .focus-bar-sep{background:rgba(255,255,255,0.06)}
 }
 </style>
 </head>
@@ -189,13 +256,16 @@ body.focus.pomo-active .focus-time{display:inline}
     </div>
     <div class="bar-r">
       <span class="focus-time" id="barFocusTime">25:00</span>
-      <button class="pomo-btn" id="btnPomo" title="番茄钟">&#x1F345;</button>
-      <button class="btn flow" id="btnFlow" style="display:none">开始</button>
+      <button class="pomo-btn" id="btnPomo" title="番茄钟">&#x23F1;</button>
       <button class="focus-btn" id="btnFocus" title="专注模式">&#x1F441;</button>
-      <button class="btn" id="btnPin" title="固定">&#x1F4CC;</button>
-      <button class="btn" id="btnFold" title="展开">&#x25B2;</button>
+      <button class="btn" id="btnPin" title="固定">
+        <svg class="pin-ol" viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg"><g transform="translate(25.367,798.205) scale(0.096244,-0.096244)"><path d="M4275 6198 c-140 -153 -181 -212 -213 -301 -22 -64 -26 -93 -31 -269 l-6 -198 -369 -369 -369 -369 -186 -4 c-165 -4 -193 -7 -244 -27 -83 -33 -165 -90 -305 -216 l-123 -110 269 -268 269 -267 -166 -219 c-516 -680 -766 -1010 -916 -1209 l-168 -224 101 -101 c94 -94 102 -99 121 -86 11 8 280 210 598 448 318 239 682 512 809 606 l230 172 265 -258 c145 -142 267 -257 270 -256 15 5 218 234 257 290 68 98 84 162 91 372 5 139 9 185 21 200 9 11 183 187 388 390 l373 370 172 6 c143 5 182 10 228 28 81 31 165 88 272 184 50 45 106 94 124 108 l31 26 -837 837 c-460 460 -838 836 -841 835 -3 0 -54 -54 -115 -121z m1353 -1530 c2 -3 -18 -19 -45 -35 -47 -28 -50 -28 -253 -33 -115 -3 -213 -10 -223 -16 -10 -6 -209 -201 -443 -435 -312 -311 -432 -437 -451 -473 -36 -70 -52 -178 -53 -345 l0 -144 -31 -49 -32 -49 -591 589 c-325 324 -604 601 -621 616 -32 30 -33 28 40 69 36 20 59 22 240 27 179 5 205 8 250 28 40 18 129 102 453 425 222 221 411 418 421 437 31 60 41 135 41 315 0 182 5 208 47 264 l26 33 611 -608 c336 -335 612 -612 614 -616z m-2273 -1268 c-3 -5 -86 -70 -183 -143 -97 -73 -260 -195 -361 -272 -101 -77 -193 -147 -204 -155 -12 -8 7 21 41 65 35 44 118 152 185 240 67 88 137 181 157 206 19 25 70 92 114 149 l79 103 89 -91 c50 -50 87 -96 83 -102z"/></g></svg>
+        <svg class="pin-fill" viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg"><g transform="translate(-3.342,836.928) scale(0.105081,-0.105081)"><path d="M4302 6144 c-52 -19 -149 -107 -192 -174 -56 -88 -70 -152 -70 -328 0 -134 -3 -161 -20 -196 -28 -59 -672 -699 -725 -722 -32 -14 -69 -17 -180 -16 -162 1 -233 -13 -314 -61 -72 -43 -163 -132 -191 -187 -28 -55 -31 -150 -5 -201 9 -19 103 -121 208 -227 184 -184 191 -193 178 -215 -8 -12 -92 -123 -187 -247 -588 -762 -940 -1223 -952 -1247 -38 -71 22 -163 106 -163 31 0 62 20 199 125 68 53 325 250 1053 809 107 82 216 167 242 188 26 21 51 38 56 38 5 0 83 -75 173 -166 199 -201 238 -231 316 -245 51 -9 66 -8 113 10 76 29 188 139 232 229 33 66 33 67 38 252 5 147 9 191 22 215 25 45 678 701 718 721 28 14 71 19 210 24 183 7 220 15 305 64 47 29 161 140 180 177 25 47 29 122 10 180 -16 51 -52 89 -659 695 -352 353 -656 650 -675 659 -48 24 -136 28 -189 9z m-1040 -2561 c43 -43 78 -83 78 -89 0 -7 -82 -75 -182 -152 -101 -77 -217 -166 -258 -198 -300 -230 -315 -241 -294 -213 7 8 60 77 119 154 359 469 441 574 450 574 5 1 45 -34 87 -76z"/></g></svg>
+      </button>
+      <button class="btn" id="btnFold" title="折叠"></button>
     </div>
   </div>
+  <div class="focus-bar-sep" id="focusBarSep"></div>
   <div class="pomo-strip" id="pomoStrip">
     <div class="ps-row">
       <div class="ps-ring-wrap" id="psRingWrap">
@@ -226,18 +296,25 @@ body.focus.pomo-active .focus-time{display:inline}
       <button class="ps-cfg-save" id="cfgSave">应用</button>
     </div>
   </div>
-  <div class="content hide" id="content">
-    <div class="c-title" id="cTitle"></div>
-    <div class="c-divider"></div>
-    <div class="c-body" id="cBody"></div>
-    <div class="c-time" id="cTime"></div>
+  <div class="content" id="content">
+    <div class="c-card">
+      <div class="c-title" id="cTitle"></div>
+      <div class="c-sep"></div>
+      <div class="c-body" id="cBody"></div>
+      <div class="c-time" id="cTime"></div>
+    </div>
+    <div class="st-subtasks" id="stSubtasks"></div>
+    <button class="st-sub-toggle" id="btnSubToggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 10 12 16 18 10"/></svg></button>
+    <div class="st-due" id="stDue"></div>
+    <button class="btn flow" id="btnFlow" style="display:none">开始</button>
   </div>
 </div>
 
 <script>
 let D = null;
 let pinned = false;
-let collapsed = true;
+let collapsed = false;
+let settings = {};
 
 // ===== Pomodoro State =====
 const PS_CIRC = 2 * Math.PI * 15;
@@ -251,11 +328,13 @@ let pomo = {
 
 // ===== Init =====
 (async () => {
+  settings = await window.stickyAPI.loadSettings();
   D = await window.stickyAPI.getData();
   if (D) {
     pomo.sessions = D._pomoSessions || 0;
     pomo.totalMin = D._pomoTotalMin || 0;
     render(D);
+    setTimeout(() => scheduleResize(), 50);
   }
   window.stickyAPI.onUpdate(d => {
     D = d;
@@ -263,6 +342,23 @@ let pomo = {
     pomo.totalMin = d._pomoTotalMin || 0;
     render(d);
     updatePomoStatsDom();
+  });
+  window.stickyAPI.onMessage(msg => {
+    if (msg.type === 'settingsUpdate') {
+      if (msg._stickyShowTime !== undefined) {
+        settings._stickyShowTime = msg._stickyShowTime;
+        render(D);
+      }
+      if (msg._showDue !== undefined) {
+        settings._showDue = msg._showDue;
+        settings._showDueFocus = msg._showDueFocus || false;
+        renderStickyDue(D.dueDate);
+      }
+      if (msg._focusShowSubtasks !== undefined) {
+        settings._focusShowSubtasks = msg._focusShowSubtasks;
+        applyFocusSubtaskState();
+      }
+    }
   });
   if (window.stickyAPI.onContextCommand) {
     window.stickyAPI.onContextCommand((command) => {
@@ -289,15 +385,20 @@ function render(d) {
   document.getElementById('barTitle').textContent = title;
   document.getElementById('cTitle').textContent = title;
   document.getElementById('cBody').textContent = d.desc || '';
-  document.getElementById('cTime').textContent = d.time || '';
-  setCollapsed(d._collapsed !== false);
+  // Time: respect settings toggle
+  const ct = document.getElementById('cTime');
+  ct.textContent = d.time || '';
+  ct.style.display = (settings && settings._stickyShowTime) ? '' : 'none';
+  renderStickySubtasks(d.subtasks || []);
+  renderStickyDue(d.dueDate);
+  setCollapsed(!!d._collapsed);
   setPinned(!!d._pinned);
   const fb = document.getElementById('btnFlow');
   if (st === 'done') { fb.style.display = 'none'; }
   else {
     fb.style.display = 'inline-grid';
     fb.textContent = st === 'todo' ? '开始' : '完成';
-    fb.style.setProperty('--fc', st === 'todo' ? '#f59e0b' : '#3b82f6');
+    fb.classList.toggle('done-flow', st === 'in-progress' || st === 'inProgress');
   }
   updatePomoStatsDom();
 }
@@ -309,15 +410,14 @@ function setCollapsed(c) {
   const ct = document.getElementById('content');
   const btn = document.getElementById('btnFold');
   const bt = document.getElementById('barTitle');
-  const st = document.getElementById('statusText');
   if (c) {
     ct.classList.add('hide');
-    btn.textContent = '\u25BC'; btn.title = '展开';
-    bt.style.display = 'block'; st.style.display = 'block';
+    btn.classList.add('folded'); btn.title = '展开';
+    bt.style.display = 'block';
   } else {
     ct.classList.remove('hide');
-    btn.textContent = '\u25B2'; btn.title = '折叠';
-    bt.style.display = 'none'; st.style.display = 'none';
+    btn.classList.remove('folded'); btn.title = '折叠';
+    bt.style.display = 'none';
   }
   if (changed) scheduleResize();
 }
@@ -341,11 +441,51 @@ document.getElementById('btnPin').onclick = e => {
   window.stickyAPI.togglePin(pinned);
 };
 
-// ===== Flow =====
+// ===== Flow button (bottom-right) =====
 document.getElementById('btnFlow').onclick = e => {
   e.stopPropagation();
   const st = D?._sourceCol || D?._stickyStatus || 'todo';
   if (st !== 'done') window.stickyAPI.changeStatus('next');
+};
+
+// ===== Subtask toggle in focus =====
+function applyFocusSubtaskState() {
+  const el = document.getElementById('stSubtasks');
+  const toggle = document.getElementById('btnSubToggle');
+  const hasItems = !!el.querySelector('.st-sub-item');
+  if (!hasItems) {
+    el.classList.remove('folded');
+    toggle.style.display = 'none';
+    toggle.classList.remove('open');
+    return;
+  }
+  const isFocus = document.body.classList.contains('focus');
+  const showSub = settings._focusShowSubtasks !== false; // default true
+  if (isFocus && showSub) {
+    el.classList.add('folded');
+    toggle.style.display = '';
+  } else if (isFocus && !showSub) {
+    el.style.display = 'none';
+    toggle.style.display = 'none';
+  } else {
+    el.classList.remove('folded');
+    el.style.display = '';
+    toggle.style.display = 'none';
+    toggle.classList.remove('open');
+  }
+}
+document.getElementById('btnSubToggle').onclick = e => {
+  e.stopPropagation();
+  const el = document.getElementById('stSubtasks');
+  const toggle = document.getElementById('btnSubToggle');
+  if (el.classList.contains('folded')) {
+    el.classList.remove('folded');
+    toggle.classList.add('open');
+  } else {
+    el.classList.add('folded');
+    toggle.classList.remove('open');
+  }
+  scheduleResize();
 };
 
 // ===== Drag: renderer only signals start/stop; main polls cursor directly =====
@@ -687,6 +827,77 @@ document.getElementById('cfgSave').onclick = e => {
   });
 });
 
+// ===== Subtasks & Due Date Rendering =====
+function escHtml(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+function formatDoneTimeSticky(iso) {
+  const d = new Date(iso);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today.getTime() - 86400000);
+  const targetDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const tm = d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  if (targetDay.getTime() === today.getTime()) return tm;
+  if (targetDay.getTime() === yesterday.getTime()) return '昨天 ' + tm;
+  return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + tm;
+}
+
+function renderStickySubtasks(subtasks) {
+  const el = document.getElementById('stSubtasks');
+  const toggle = document.getElementById('btnSubToggle');
+  if (!subtasks.length || !subtasks.filter(s => s.text).length) {
+    el.innerHTML = '';
+    el.classList.remove('folded');
+    toggle.style.display = 'none';
+    toggle.classList.remove('open');
+    return;
+  }
+  el.innerHTML = subtasks.map((st, i) => {
+    let timeStr = '';
+    if (st.done && st.doneAt) timeStr = formatDoneTimeSticky(st.doneAt);
+    return `
+    <div class="st-sub-item${st.done ? ' done' : ''}">
+      <input type="checkbox" ${st.done ? 'checked' : ''} data-idx="${i}" class="st-sub-check">
+      <span class="st-sub-text">${escHtml(st.text)}</span>
+      ${timeStr ? '<span class="st-sub-time">' + escHtml(timeStr) + '</span>' : ''}
+    </div>`;
+  }).join('');
+  el.querySelectorAll('.st-sub-check').forEach(cb => {
+    cb.onchange = () => {
+      const idx = parseInt(cb.dataset.idx);
+      if (!D || !D.subtasks) return;
+      D.subtasks[idx].done = cb.checked;
+      if (cb.checked) {
+        D.subtasks[idx].doneAt = new Date().toISOString();
+      } else {
+        delete D.subtasks[idx].doneAt;
+      }
+      D.subtasks = [...D.subtasks];
+      renderStickySubtasks(D.subtasks);
+      window.stickyAPI.saveSubtasks(D.id, D.subtasks);
+    };
+  });
+}
+
+function renderStickyDue(dueDate) {
+  const el = document.getElementById('stDue');
+  if (!dueDate) { el.innerHTML = ''; return; }
+  const now = new Date();
+  const due = new Date(dueDate);
+  let cls = 'upcoming';
+  if (due <= now) cls = 'overdue';
+  else if ((due - now) < 24 * 60 * 60 * 1000) cls = 'today';
+  const fmtDate = due.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' });
+  const fmtTime = due.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  el.className = 'st-due ' + cls;
+  el.innerHTML = '<span class="st-due-label">截止时间</span> ' + fmtDate + ' ' + fmtTime;
+  // Respect settings
+  const show = settings._showDue !== false;
+  const showFocus = settings._showDueFocus;
+  const isFocus = document.body.classList.contains('focus');
+  el.style.display = (show && (!isFocus || showFocus)) ? '' : 'none';
+}
+
 // ===== Focus mode toggle =====
 let focused = false;
 document.getElementById('btnFocus').onclick = e => {
@@ -696,6 +907,10 @@ document.getElementById('btnFocus').onclick = e => {
   // Sync pomo-active class
   document.body.classList.toggle('pomo-active', psStrip.classList.contains('open'));
   document.getElementById('btnFocus').classList.toggle('on', focused);
+  if (D) {
+    renderStickyDue(D.dueDate);
+    applyFocusSubtaskState();
+  }
   scheduleResize();
 };
 </script>

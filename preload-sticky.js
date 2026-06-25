@@ -3,7 +3,9 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('stickyAPI', {
   getData: () => ipcRenderer.invoke('sticky:getData'),
   onUpdate: (cb) => ipcRenderer.on('sticky:update', (_, d) => cb(d)),
+  onMessage: (cb) => ipcRenderer.on('sticky:message', (_, msg) => cb(msg)),
   onContextCommand: (cb) => ipcRenderer.on('sticky:context-command', (_, cmd) => cb(cmd)),
+  loadSettings: () => ipcRenderer.invoke('sticky:loadSettings'),
   toggleCollapse: (collapsed) => ipcRenderer.send('sticky:toggleCollapse', collapsed),
   togglePin: (pinned) => ipcRenderer.send('sticky:togglePin', pinned),
   changeStatus: (flow) => ipcRenderer.send('sticky:changeStatus', flow),
@@ -19,4 +21,6 @@ contextBridge.exposeInMainWorld('stickyAPI', {
   showContextMenu: (payload) => ipcRenderer.invoke('sticky:showContextMenu', payload),
   addPomoTime: (cardId, ms) => ipcRenderer.send('sticky:addPomoTime', cardId, ms),
   savePomoStats: (cardId, sessions, totalMin) => ipcRenderer.invoke('sticky:savePomoStats', cardId, sessions, totalMin),
+  saveSubtasks: (cardId, subtasks) => ipcRenderer.invoke('sticky:saveSubtasks', cardId, subtasks),
+  saveDueDate: (cardId, dueDate) => ipcRenderer.invoke('sticky:saveDueDate', cardId, dueDate),
 });

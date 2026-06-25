@@ -1,7 +1,8 @@
 {
   "name": "kanota",
-  "version": "1.0.0",
-  "description": "Kanota 桌面看板便签 - 拖拽任务管理 + 桌面便签 + 主题切换",
+  "version": "1.0.3",
+  "author": "CaffYooO",
+  "description": "Kanota — CaffYooO 桌面看板便签 · 拖拽任务管理 + 桌面便签 + 主题切换",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -17,6 +18,7 @@
       "main.js",
       "preload.js",
       "preload-sticky.js",
+      "updater.js",
       "sticky.html",
       "index.html",
       "package.json",
