@@ -18,7 +18,6 @@
       "main.js",
       "preload.js",
       "preload-sticky.js",
-      "updater.js",
       "sticky.html",
       "index.html",
       "package.json",

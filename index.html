@@ -69,11 +69,6 @@ body{font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;backgroun
 .side-dot{position:absolute;right:14px;top:50%;transform:translateY(-50%);width:8px;height:8px;border-radius:50%;background:#3b82f6;display:none}
 .side-dot.show{display:block}
 .side-footer{margin-top:auto;padding:12px 16px;border-top:1px solid var(--border);font-size:11px;color:var(--text3);display:flex;flex-direction:column;gap:3px}
-.upd-status{font-size:10px;cursor:pointer;transition:color .15s}
-.upd-status:hover{opacity:0.7}
-.upd-status.up-to-date{color:var(--text3)}
-.upd-status.has-update{color:#10b981}
-.upd-status.checking{color:var(--text2)}
 /* About page */
 .about-card{max-width:560px;margin:0 auto;padding:24px 0}
 .about-logo{font-size:36px;font-weight:300;letter-spacing:.08em;color:var(--text1);margin-bottom:20px}
@@ -382,8 +377,7 @@ body{font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;backgroun
       <div class="side-item" data-page="about"><span class="side-ico">&#x2139;</span> 关于</div>
     </div>
     <div class="side-footer" id="sideFooter">
-      <span class="upd-status" id="updStatus" title="点击检查更新">检查更新</span>
-      <span id="sideVersion">Kanota v1.0.3</span>
+      <span id="sideVersion">Kanota v1.0.4</span>
     </div>
   </nav>
 
@@ -568,10 +562,9 @@ body{font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;backgroun
           <div class="about-row"><span class="about-key">邮箱</span><span class="about-val"><a href="mailto:13257035176@163.com">13257035176@163.com</a></span></div>
         </div>
         <p class="about-desc">Kanota 是一款轻量级桌面看板便签应用，融合了看板卡片管理与桌面便签两大功能。支持拖拽流转卡片状态、专注模式、番茄钟计时、多主题切换等特性，帮助你在本地高效管理任务与灵感。</p>
-        <p class="about-desc">所有数据存储于本地，完全离线工作，无需任何网络连接。通过 GitHub Release 进行版本更新，你可以随时检查并下载最新版本。</p>
+        <p class="about-desc">所有数据存储于本地，完全离线工作，无需任何网络连接。</p>
         <div class="about-update">
-          <span class="upd-status" id="aboutUpdStatus" title="点击检查更新">检查更新</span>
-          <span style="color:var(--text2);font-size:11px">当前 <span id="aboutCurVer">v1.0.3</span></span>
+          <span style="color:var(--text2);font-size:11px">当前版本 <span id="aboutCurVer">v1.0.4</span></span>
         </div>
       </div>
     </div>
@@ -716,77 +709,15 @@ async function init() {
   initNoteOverlayBindings();
   renderAll();
 
-  // Listen for update available (from tray menu check)
-  const updStatus = document.getElementById('updStatus');
   const sideVer = document.getElementById('sideVersion');
   const aboutVer = document.getElementById('aboutVersion');
   const aboutCurVer = document.getElementById('aboutCurVer');
-  const aboutUpd = document.getElementById('aboutUpdStatus');
 
-  function syncUpdateUI(state, version, current) {
-    // Set text/class for sidebar upd status
-    const apply = (el, txt, cls) => { el.textContent = txt; el.className = 'upd-status ' + cls; };
-    if (state === 'checking') {
-      apply(updStatus, '检查中...', 'checking');
-      apply(aboutUpd, '检查中...', 'checking');
-    } else if (state === 'up-to-date') {
-      apply(updStatus, '已是最新版本', 'up-to-date');
-      apply(aboutUpd, '已是最新版本', 'up-to-date');
-      aboutUpd.onclick = doCheckUpdate;
-      aboutUpd.title = '点击检查更新';
-      updStatus.onclick = doCheckUpdate;
-    } else if (state === 'has-update') {
-      apply(updStatus, `有新版本 v${version}`, 'has-update');
-      apply(aboutUpd, `有新版本 v${version}`, 'has-update');
-      updStatus.title = '点击下载更新';
-      aboutUpd.title = '点击下载更新';
-      const doDownload = async () => {
-        apply(updStatus, '下载中...', 'checking');
-        apply(aboutUpd, '下载中...', 'checking');
-        await window.electronAPI.downloadUpdate();
-      };
-      updStatus.onclick = doDownload;
-      aboutUpd.onclick = doDownload;
-    }
-    if (current) {
-      sideVer.textContent = `Kanota v${current}`;
-      aboutVer.textContent = 'v' + current;
-      aboutCurVer.textContent = 'v' + current;
-    }
-  }
-
-  async function doCheckUpdate() {
-    syncUpdateUI('checking');
-    const result = await window.electronAPI.checkUpdate();
-    if (result.upToDate) {
-      syncUpdateUI('up-to-date', '', result.currentVersion);
-    } else if (result.error) {
-      updStatus.textContent = '检查失败，点击重试';
-      updStatus.className = 'upd-status has-update';
-      aboutUpd.textContent = '检查失败，点击重试';
-      aboutUpd.className = 'upd-status has-update';
-      updStatus.onclick = doCheckUpdate;
-      aboutUpd.onclick = doCheckUpdate;
-    } else {
-      syncUpdateUI('has-update', result.latestVersion, result.currentVersion);
-    }
-  }
-
-  updStatus.onclick = doCheckUpdate;
-  aboutUpd.onclick = doCheckUpdate;
-
-  window.electronAPI.onUpdateAvailable(info => {
-    syncUpdateUI('has-update', info.version, info.current);
-  });
-
-  // Show version on load
-  window.electronAPI.checkUpdate().then(r => {
-    sideVer.textContent = `Kanota v${r.currentVersion}`;
-    aboutVer.textContent = 'v' + r.currentVersion;
-    aboutCurVer.textContent = 'v' + r.currentVersion;
-    if (r.upToDate) {
-      syncUpdateUI('up-to-date', '', r.currentVersion);
-    }
+  // Show version
+  window.electronAPI.getVersion().then(v => {
+    sideVer.textContent = `Kanota v${v}`;
+    aboutVer.textContent = 'v' + v;
+    aboutCurVer.textContent = 'v' + v;
   });
 }
 function renderAll() { renderKanban(); updateDashboard(); updateTrashBadge(); updateTabCounts(); updateStats(); }

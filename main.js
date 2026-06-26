@@ -1,7 +1,6 @@
 const { app, BrowserWindow, ipcMain, Menu, screen, Tray, dialog, nativeImage, Notification } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const updater = require('./updater');
 
 const getDefaultDataDir = () => {
   const exeDir = path.dirname(app.getPath('exe'));
@@ -44,7 +43,6 @@ if (fs.existsSync(path.join(OLD_DATA_DIR, 'kanban-data.json')) && !fs.existsSync
 }
 
 let mainWindow = null;
-let updateWindow = null;
 let tray = null;
 const stickyWindows = new Map(); // Map<cardId, BrowserWindow>
 
@@ -198,124 +196,6 @@ ipcMain.handle('broadcast-to-stickies', (_, msg) => {
 });
 ipcMain.handle('sticky:loadSettings', () => loadJSON(SETTINGS_FILE, {}));
 
-// ===== Updates =====
-let latestRelease = null;
-
-function createUpdateWindow() {
-  if (updateWindow && !updateWindow.isDestroyed()) {
-    updateWindow.focus();
-    return updateWindow;
-  }
-  updateWindow = new BrowserWindow({
-    width: 380, height: 360,
-    resizable: false, frame: false, transparent: true,
-    alwaysOnTop: true, skipTaskbar: true,
-    backgroundColor: '#00000000',
-    webPreferences: {
-      preload: path.join(__dirname, 'preload-update.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
-  });
-  // Center on screen
-  const { width, height } = require('electron').screen.getPrimaryDisplay().workAreaSize;
-  updateWindow.setBounds({ x: Math.round((width - 380) / 2), y: Math.round((height - 360) / 2), width: 380, height: 360 });
-  updateWindow.loadFile('update.html');
-  updateWindow.on('closed', () => { updateWindow = null; });
-  return updateWindow;
-}
-
-function destroyUpdateWindow() {
-  if (updateWindow && !updateWindow.isDestroyed()) {
-    updateWindow.close();
-    updateWindow = null;
-  }
-}
-
-async function checkForUpdate(showDialog = true) {
-  const result = await updater.checkForUpdates(!showDialog);
-  if (result.upToDate) {
-    if (showDialog) {
-      // Open update window showing "up to date"
-      const win = createUpdateWindow();
-      win.webContents.once('did-finish-load', () => {
-        win.webContents.send('update:up-to-date', { currentVersion: result.currentVersion });
-      });
-    }
-    return;
-  }
-  if (result.error) {
-    if (showDialog) {
-      const win = createUpdateWindow();
-      win.webContents.once('did-finish-load', () => {
-        win.webContents.send('update:error', { message: result.error });
-      });
-    }
-    return;
-  }
-  latestRelease = result.release;
-  // Notify main window sidebar
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('update:available', {
-      version: result.latestVersion,
-      current: result.currentVersion,
-      notes: (result.release || {}).body || '',
-    });
-  }
-  if (showDialog) {
-    // Open update window showing version info
-    const win = createUpdateWindow();
-    win.webContents.once('did-finish-load', () => {
-      win.webContents.send('update:info', {
-        currentVersion: result.currentVersion,
-        latestVersion: result.latestVersion,
-        notes: (result.release || {}).body || '',
-      });
-    });
-  }
-}
-
-ipcMain.handle('check-update', async () => {
-  const result = await updater.checkForUpdates(true);
-  if (result.upToDate) return { upToDate: true, currentVersion: result.currentVersion };
-  if (result.error) return { error: result.error, currentVersion: result.currentVersion };
-  latestRelease = result.release;
-  return { upToDate: false, currentVersion: result.currentVersion, latestVersion: result.latestVersion, notes: (result.release || {}).body || '' };
-});
-
-ipcMain.handle('download-update', async () => {
-  if (!latestRelease) {
-    const result = await updater.checkForUpdates(true);
-    if (result.upToDate || result.error) return { ok: false };
-    latestRelease = result.release;
-  }
-  // Open update window and start download
-  const win = createUpdateWindow();
-  win.webContents.once('did-finish-load', async () => {
-    win.webContents.send('update:info', {
-      currentVersion: app.getVersion(),
-      latestVersion: latestRelease.tag_name.replace(/^v/i, ''),
-      notes: (latestRelease || {}).body || '',
-    });
-    // Auto start download after a short delay so UI renders
-    setTimeout(() => { win.webContents.send('update:progress', 0); }, 300);
-    try { await updater.downloadAndInstall(latestRelease, win); } catch (e) {
-      if (win && !win.isDestroyed()) win.webContents.send('update:progress', -1);
-    }
-  });
-  return { ok: true };
-});
-
-// Update window IPC
-ipcMain.on('update:close', () => destroyUpdateWindow());
-ipcMain.on('update:retry-check', async () => { destroyUpdateWindow(); await checkForUpdate(true); });
-ipcMain.on('update:start-download', async () => {
-  if (!latestRelease) return;
-  try { await updater.downloadAndInstall(latestRelease, updateWindow); } catch (e) {
-    if (updateWindow && !updateWindow.isDestroyed()) updateWindow.webContents.send('update:error', { message: e.message });
-  }
-});
-
 // ===== Data Path =====
 ipcMain.handle('get-data-path', () => ({ current: DATA_DIR, default: DEFAULT_DATA_DIR }));
 ipcMain.handle('set-data-path', async (_, newPath, migrate) => {
@@ -358,6 +238,7 @@ ipcMain.handle('pick-folder', async () => {
 });
 ipcMain.handle('load-trash', () => loadJSON(trashFile(), []));
 ipcMain.handle('save-trash', (_, d) => saveJSON(trashFile(), d));
+ipcMain.handle('get-version', () => app.getVersion());
 
 // ===== Drag out =====
 let dragPollTimer = null;
@@ -965,7 +846,6 @@ app.whenReady().then(() => {
     tray.setToolTip('Kanota — by CaffYooO');
     tray.setContextMenu(Menu.buildFromTemplate([
       { label: '显示主窗口', click: () => { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } } },
-      { label: '检查更新', click: () => checkForUpdate(true) },
       { type: 'separator' },
       { label: '退出', click: () => app.quit() },
     ]));
