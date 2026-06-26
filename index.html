@@ -66,6 +66,8 @@ body{font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;backgroun
 .side-item.active{background:var(--accent);color:#fff;font-weight:600}
 .side-ico{font-size:15px;width:20px;text-align:center;flex-shrink:0;font-weight:500}
 .side-badge{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:var(--danger);color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;line-height:18px;text-align:center;border-radius:9px;padding:0 6px}
+.side-dot{position:absolute;right:14px;top:50%;transform:translateY(-50%);width:8px;height:8px;border-radius:50%;background:#3b82f6;display:none}
+.side-dot.show{display:block}
 .side-footer{margin-top:auto;padding:12px 16px;border-top:1px solid var(--border);font-size:11px;color:var(--text3);display:flex;flex-direction:column;gap:3px}
 .upd-status{font-size:10px;cursor:pointer;transition:color .15s}
 .upd-status:hover{opacity:0.7}
@@ -375,7 +377,7 @@ body{font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;backgroun
     </div>
     <div class="side-group">
       <div class="side-label">&#x2009;管 理</div>
-      <div class="side-item" data-page="trash"><span class="side-ico">&#x2298;</span> 回收站<span class="side-badge" id="badgeTrash" style="display:none">0</span></div>
+      <div class="side-item" data-page="trash"><span class="side-ico">&#x2298;</span> 回收站<span class="side-dot" id="badgeTrash"></span></div>
       <div class="side-item" data-page="settings"><span class="side-ico">&#x2299;</span> 设置</div>
       <div class="side-item" data-page="about"><span class="side-ico">&#x2139;</span> 关于</div>
     </div>
@@ -549,7 +551,7 @@ body{font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;backgroun
 
     <!-- ===== Trash ===== -->
     <div class="page" id="page-trash">
-      <h2 class="h2">回收站</h2><p class="sub">关闭的标签保存在此处，可恢复或永久删除</p>
+      <h2 class="h2">回收站</h2><p class="sub" id="trashCountLine">关闭的标签保存在此处，可恢复或永久删除</p>
       <div class="trash-list" id="trashList"></div>
       <div style="margin-top:16px"><button onclick="clearTrash()" style="padding:6px 14px;border:1px solid var(--danger);border-radius:7px;background:transparent;color:var(--danger);cursor:pointer;font-family:inherit;font-size:12px">清空回收站</button></div>
     </div>
@@ -651,6 +653,7 @@ body{font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;backgroun
 let data = { todo: [], inProgress: [], done: [], _stickies: [] };
 let settings = { theme: 'light', alwaysOnTop: false };
 let trash = [];
+let trashRead = true; // hides blue dot after user sees trash panel
 let currentPage = 'dashboard', noteEditing = null;
 let activeKanbanCat = 'todo'; // which category tab is active for filtering
 
@@ -907,8 +910,14 @@ async function updateStats() {
 }
 function updateTrashBadge() {
   const b = document.getElementById('badgeTrash');
-  b.textContent = trash.length;
-  b.style.display = trash.length ? 'block' : 'none';
+  if (trash.length === 0 || trashRead) { b.classList.remove('show'); }
+  else { b.classList.add('show'); }
+}
+function updateTrashCountLine() {
+  const el = document.getElementById('trashCountLine');
+  if (!el) return;
+  const n = trash.length;
+  el.textContent = n > 0 ? '共 ' + n + ' 项已关闭的标签，可恢复或永久删除' : '关闭的标签保存在此处，可恢复或永久删除';
 }
 function updateTabCounts() {
   for (const col of KANBAN_COLS) {
@@ -1176,6 +1185,7 @@ function bindStickyEvents() {
       }
       window.electronAPI.loadTrash().then(t => {
         trash = t;
+        trashRead = false;
         updateTrashBadge();
       });
       renderStickies();
@@ -1201,6 +1211,7 @@ function bindStickyEvents() {
       data = await window.electronAPI.loadData();
       migrateData();
       trash = await window.electronAPI.loadTrash();
+      trashRead = false;
       renderAll();
     });
   }
@@ -1275,6 +1286,7 @@ function bindStickyEvents() {
       data = await window.electronAPI.loadData();
       migrateData();
       trash = await window.electronAPI.loadTrash();
+      trashRead = false;
       renderAll();
     });
   }
@@ -1793,7 +1805,8 @@ function syncCardToStickies(cardId) {
       s.desc = orig.desc || '';
       s.noteColor = orig.noteColor || null;
       s.subtasks = orig.subtasks || s.subtasks || [];
-      s.dueDate = orig.dueDate || s.dueDate || null;
+      s.dueDate = orig.dueDate || null;
+      s.dueReminded = orig.dueReminded !== undefined ? orig.dueReminded : s.dueReminded;
       save();
       window.electronAPI.syncStickyData(s);
     }
@@ -1811,6 +1824,7 @@ function delSticky(id) {
     closedAt: new Date().toISOString()
   });
   window.electronAPI.saveTrash(trash);
+  trashRead = false;
   renderStickies();
   updateTrashBadge();
   save();
@@ -1820,6 +1834,9 @@ function delSticky(id) {
 const STATUS_LABEL = { todo: '待办', inProgress: '进行中', done: '已完成' };
 async function renderTrash() {
   const list = document.getElementById('trashList');
+  trashRead = true;
+  updateTrashBadge();
+  updateTrashCountLine();
   if (!trash.length) {
     list.innerHTML = '<div class="empty"><div class="eico">&#x2298;</div><p>回收站为空</p></div>';
     return;

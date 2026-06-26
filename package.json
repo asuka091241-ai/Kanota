@@ -1,6 +1,6 @@
 {
   "name": "kanota",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "author": "CaffYooO",
   "description": "Kanota — CaffYooO 桌面看板便签 · 拖拽任务管理 + 桌面便签 + 主题切换",
   "main": "main.js",

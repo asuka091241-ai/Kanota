@@ -825,7 +825,7 @@ ipcMain.handle('sync-sticky-data', (_, cardData) => {
     }
     s.time = cardData.time || s.time;
     s.subtasks = cardData.subtasks || s.subtasks || [];
-    s.dueDate = cardData.dueDate || s.dueDate || null;
+    s.dueDate = cardData.dueDate || null;
     s.dueReminded = cardData.dueReminded !== undefined ? cardData.dueReminded : s.dueReminded;
     writeData(data);
     w.cardData = { ...s };
@@ -889,7 +889,7 @@ app.whenReady().then(() => {
 
   // Create tray
   try {
-    const trayIcon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
+    const trayIcon = nativeImage.createFromPath(path.join(__dirname, 'tray-icon.ico'));
     tray = new Tray(trayIcon);
     tray.setToolTip('Kanota — by CaffYooO');
     tray.setContextMenu(Menu.buildFromTemplate([

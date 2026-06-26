@@ -44,7 +44,7 @@ body{font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;font-size
 .c-title:empty{display:none}
 .c-sep{height:1px;background:rgba(0,0,0,0.06);margin:0 12px;flex-shrink:0}
 .c-title:empty+.c-sep{display:none}
-.c-body{padding:6px 12px 8px;font-size:12.5px;line-height:1.65;color:rgba(0,0,0,0.6);word-break:break-word}
+.c-body{padding:6px 12px 14px;font-size:12.5px;line-height:1.65;color:rgba(0,0,0,0.6);word-break:break-word}
 .c-body:empty{display:none}
 .c-time{font-size:10px;color:rgba(0,0,0,0.35);padding:0 12px 8px}
 .c-time:empty{display:none}
@@ -56,8 +56,13 @@ body{font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;font-size
 .st-due.today{color:rgba(0,0,0,0.35)}
 .st-due-label{font-weight:600;color:rgba(0,0,0,0.3);font-size:9px;letter-spacing:.03em}
 .st-due.upcoming{color:rgba(0,0,0,0.25)}
-/* Flow button at bottom-right */
-.flow{position:absolute;right:12px;bottom:8px;display:none;font-size:11px;font-weight:600;padding:2px 8px;width:auto;color:var(--fc,#f59e0b);background:rgba(0,0,0,0.05);border:none;border-radius:4px;font-family:inherit;cursor:pointer;transition:background .15s;z-index:5}
+/* Bottom row: due date + flow button sit together */
+.st-bottom-row{display:flex;align-items:center;margin:6px 14px 10px;min-height:24px}
+.st-bottom-row:empty{display:none}
+.st-bottom-row .st-due{padding:0;margin:0;flex:1;min-width:0;display:block}
+.st-bottom-row.flow-only{justify-content:flex-end}
+/* Flow button */
+.flow{display:none;font-size:11px;font-weight:600;padding:2px 8px;width:auto;color:var(--fc,#f59e0b);background:rgba(0,0,0,0.05);border:none;border-radius:4px;font-family:inherit;cursor:pointer;transition:background .15s;z-index:5;flex-shrink:0}
 .flow:hover{background:rgba(0,0,0,0.1)}
 /* Subtask expand toggle in focus */
 .st-sub-toggle{display:none;margin:0 0 4px 10px;padding:0;border:none;background:transparent;color:rgba(0,0,0,0.15);font-size:16px;font-family:inherit;cursor:pointer;transition:color .15s;align-self:flex-start}
@@ -305,8 +310,10 @@ body.focus.pomo-active .focus-time{display:inline}
     </div>
     <div class="st-subtasks" id="stSubtasks"></div>
     <button class="st-sub-toggle" id="btnSubToggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 10 12 16 18 10"/></svg></button>
-    <div class="st-due" id="stDue"></div>
-    <button class="btn flow" id="btnFlow" style="display:none">开始</button>
+    <div class="st-bottom-row" id="stBottomRow">
+      <div class="st-due" id="stDue"></div>
+      <button class="btn flow" id="btnFlow" style="display:none">开始</button>
+    </div>
   </div>
 </div>
 
@@ -338,25 +345,30 @@ let pomo = {
   }
   window.stickyAPI.onUpdate(d => {
     D = d;
+    d._collapsed = collapsed; // preserve current expand/collapse during sync
     pomo.sessions = d._pomoSessions || 0;
     pomo.totalMin = d._pomoTotalMin || 0;
     render(d);
     updatePomoStatsDom();
+    scheduleResize();
   });
   window.stickyAPI.onMessage(msg => {
     if (msg.type === 'settingsUpdate') {
       if (msg._stickyShowTime !== undefined) {
         settings._stickyShowTime = msg._stickyShowTime;
         render(D);
+        scheduleResize();
       }
       if (msg._showDue !== undefined) {
         settings._showDue = msg._showDue;
         settings._showDueFocus = msg._showDueFocus || false;
         renderStickyDue(D.dueDate);
+        scheduleResize();
       }
       if (msg._focusShowSubtasks !== undefined) {
         settings._focusShowSubtasks = msg._focusShowSubtasks;
         applyFocusSubtaskState();
+        scheduleResize();
       }
     }
   });
@@ -394,12 +406,16 @@ function render(d) {
   setCollapsed(!!d._collapsed);
   setPinned(!!d._pinned);
   const fb = document.getElementById('btnFlow');
+  const bottomRow = document.getElementById('stBottomRow');
+  const dueEl = document.getElementById('stDue');
   if (st === 'done') { fb.style.display = 'none'; }
   else {
     fb.style.display = 'inline-grid';
     fb.textContent = st === 'todo' ? '开始' : '完成';
     fb.classList.toggle('done-flow', st === 'in-progress' || st === 'inProgress');
   }
+  bottomRow.style.display = (fb.style.display !== 'none' || dueEl.style.display !== 'none') ? '' : 'none';
+  bottomRow.classList.toggle('flow-only', fb.style.display !== 'none' && dueEl.style.display === 'none');
   updatePomoStatsDom();
 }
 
@@ -881,7 +897,9 @@ function renderStickySubtasks(subtasks) {
 
 function renderStickyDue(dueDate) {
   const el = document.getElementById('stDue');
-  if (!dueDate) { el.innerHTML = ''; return; }
+  const row = document.getElementById('stBottomRow');
+  const fb = document.getElementById('btnFlow');
+  if (!dueDate) { el.innerHTML = ''; el.style.display = 'none'; row.style.display = fb.style.display !== 'none' ? '' : 'none'; return; }
   const now = new Date();
   const due = new Date(dueDate);
   let cls = 'upcoming';
@@ -896,6 +914,7 @@ function renderStickyDue(dueDate) {
   const showFocus = settings._showDueFocus;
   const isFocus = document.body.classList.contains('focus');
   el.style.display = (show && (!isFocus || showFocus)) ? '' : 'none';
+  row.style.display = (el.style.display !== 'none' || fb.style.display !== 'none') ? '' : 'none';
 }
 
 // ===== Focus mode toggle =====
