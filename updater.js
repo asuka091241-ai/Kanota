@@ -106,9 +106,6 @@ async function checkForUpdates(silent) {
     const currentVersion = app.getVersion();
     const cache = loadCache();
     const now = Date.now();
-    if (cache.lastCheck && (now - cache.lastCheck) < 3600000 && silent) {
-      return { currentVersion, latestVersion: cache.latestVersion, upToDate: true, cached: true };
-    }
     const release = await httpGet('https://api.github.com/repos/' + REPO_OWNER + '/' + REPO_NAME + '/releases/latest');
     const latestVersion = (release.tag_name || '').replace(/^v/i, '');
     if (!latestVersion) return { currentVersion, error: 'no version found' };
