@@ -4,9 +4,7 @@
 
 一边用看板拖拽管理任务进度，一边把卡片拖到桌面变成浮动便签，内置番茄钟专注计时。
 
-| 三列看板 | 专注模式 | 番茄钟 |
-|:---:|:---:|:---:|
-| ![kanban](screenshots/kanban.png) | ![focus](screenshots/focus.png) | ![pomodoro](screenshots/pomodoro.png) |
+<p align="center"><img src="screenshots/kanban.png" alt="Kanota 看板界面" width="90%"></p>
 
 ---
 
@@ -41,12 +39,16 @@
 - 番茄打开时右侧显示红（工作中）/ 绿（休息中）倒计时
 - 可在设置中开关「专注模式显示子任务」和「截止时间」
 
+<p align="center"><img src="screenshots/focus.png" alt="专注模式" width="60%"></p>
+
 ### 🍅 番茄钟
 - 点击 ⏱ 按钮打开番茄计时条
 - **圆环动画**：rAF 驱动平滑倒数
 - 可配置**专注时长、休息时长、轮次**
 - 三轮自动：专注 → 休息 → 专注 → 休息 → 专注 → 完成 ✓
 - 工作时间自动累积到卡片
+
+<p align="center"><img src="screenshots/pomodoro.png" alt="番茄钟" width="60%"></p>
 
 ### 🎨 主题与界面
 - **浅色 / 深色**两种主题（跟随系统偏好）
