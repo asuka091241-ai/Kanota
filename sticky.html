@@ -558,8 +558,8 @@ function scheduleResize() {
       const barH = 34;
       let extraH = 0;
       const strip = document.getElementById('pomoStrip');
-      if (strip.offsetHeight > 0) {
-        extraH += strip.offsetHeight;
+      if (strip.classList.contains('open')) {
+        extraH += strip.scrollHeight;
       }
       // Show content when not collapsed OR in focus mode
       if (!collapsed || document.body.classList.contains('focus')) {
@@ -683,12 +683,11 @@ function openPomo() {
 }
 
 function closePomo() {
-  if (pomo.state === 'running') return;
   psStrip.classList.remove('open', 'config');
   document.body.classList.remove('pomo-active');
   psRingWrap.classList.remove('active', 'break');
-  btnPomo.classList.remove('ready', 'active');
   document.getElementById('psGear').classList.remove('on');
+  updatePomoBtn();
   scheduleResize();
 }
 
