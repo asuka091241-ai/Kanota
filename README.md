@@ -172,7 +172,7 @@ kanban-app/
 
 **CaffYooO** — [github.com/asuka091241-ai/Kanota-Desktop-Sticky-Notes](https://github.com/asuka091241-ai/Kanota-Desktop-Sticky-Notes)
 
-如有问题或建议，欢迎提交 Issue 或邮件联系：**13257035176@163.com**
+如有问题或建议，欢迎提交 Issue 或邮件联系：**caffyooo@163.com**
 
 ---
 

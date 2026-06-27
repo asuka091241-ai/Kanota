@@ -841,7 +841,10 @@ app.whenReady().then(() => {
 
   // Create tray
   try {
-    const trayIcon = nativeImage.createFromPath(path.join(__dirname, 'tray-icon.ico'));
+    const trayIconPath = app.isPackaged
+      ? path.join(process.resourcesPath, 'tray-icon.ico')
+      : path.join(__dirname, 'tray-icon.ico');
+    const trayIcon = nativeImage.createFromPath(trayIconPath);
     tray = new Tray(trayIcon);
     tray.setToolTip('Kanota — by CaffYooO');
     tray.setContextMenu(Menu.buildFromTemplate([
