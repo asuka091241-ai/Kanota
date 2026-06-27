@@ -68,6 +68,8 @@ body{font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;font-size
 .st-sub-toggle{display:none;margin:0 0 4px 10px;padding:0;border:none;background:transparent;color:rgba(0,0,0,0.15);font-size:16px;font-family:inherit;cursor:pointer;transition:color .15s;align-self:flex-start}
 .st-sub-toggle:hover{color:rgba(0,0,0,0.35)}
 body.focus .st-sub-toggle{display:block}
+body.focus .bar-r .st-sub-toggle{margin:0;align-self:center;color:rgba(0,0,0,0.35);font-size:0}
+body.focus .bar-r .st-sub-toggle:hover{color:rgba(0,0,0,0.65)}
 body.focus .st-subtasks.folded{display:none}
 .st-sub-toggle svg{width:18px;height:18px;transition:transform .2s}
 .st-sub-toggle.open svg{transform:rotate(180deg)}
@@ -152,6 +154,7 @@ body.focus .bar-r{gap:6px;align-items:center}
 body.focus .focus-bar-sep{display:block}
 body.focus .bar-title{font-size:13px;font-weight:700;display:block !important}
 body.focus .c-body{font-size:12.5px;color:rgba(0,0,0,0.65);padding:6px 14px 14px}
+body.focus .st-bottom-row{margin-bottom:2px;min-height:0}
 .focus-time{align-self:center}
 body.focus .focus-btn{align-self:center}
 /* Show focus-time on bar when pomo panel is opened */
@@ -235,6 +238,8 @@ body.focus.pomo-active .focus-time{display:inline}
   .flow:hover{background:rgba(255,255,255,0.14)}
   .st-sub-toggle{border-color:rgba(255,255,255,0.1);color:rgba(255,255,255,0.15)}
   .st-sub-toggle:hover{color:rgba(255,255,255,0.35)}
+  body.focus .bar-r .st-sub-toggle{color:rgba(255,255,255,0.35)}
+  body.focus .bar-r .st-sub-toggle:hover{color:rgba(255,255,255,0.65)}
   .st-sub-time{color:rgba(255,255,255,0.2)}
   #btnFold::after{border-bottom-color:rgba(255,255,255,0.25)}
   #btnFold:hover::after{border-bottom-color:rgba(255,255,255,0.5)}
@@ -414,7 +419,8 @@ function render(d) {
     fb.textContent = st === 'todo' ? '开始' : '完成';
     fb.classList.toggle('done-flow', st === 'in-progress' || st === 'inProgress');
   }
-  bottomRow.style.display = (fb.style.display !== 'none' || dueEl.style.display !== 'none') ? '' : 'none';
+  const isFocus = document.body.classList.contains('focus');
+  bottomRow.style.display = (fb.style.display !== 'none' && !isFocus || dueEl.style.display !== 'none') ? '' : 'none';
   bottomRow.classList.toggle('flow-only', fb.style.display !== 'none' && dueEl.style.display === 'none');
   updatePomoStatsDom();
 }
@@ -552,13 +558,12 @@ function scheduleResize() {
       const barH = 34;
       let extraH = 0;
       const strip = document.getElementById('pomoStrip');
-      if (strip.classList.contains('open')) {
-        extraH += 53;
-        if (strip.classList.contains('config')) extraH += 35;
+      if (strip.offsetHeight > 0) {
+        extraH += strip.offsetHeight;
       }
       // Show content when not collapsed OR in focus mode
       if (!collapsed || document.body.classList.contains('focus')) {
-        extraH += document.getElementById('content').scrollHeight;
+        extraH += document.getElementById('content').getBoundingClientRect().height;
       }
       // 20 = body padding, 1 = rounding buffer
       window.stickyAPI.resize(barH + extraH + 20 + 1);
@@ -899,7 +904,10 @@ function renderStickyDue(dueDate) {
   const el = document.getElementById('stDue');
   const row = document.getElementById('stBottomRow');
   const fb = document.getElementById('btnFlow');
-  if (!dueDate) { el.innerHTML = ''; el.style.display = 'none'; row.style.display = fb.style.display !== 'none' ? '' : 'none'; return; }
+  const isFocus = document.body.classList.contains('focus');
+  // In focus mode, flow button is hidden by CSS !important regardless of inline style
+  const fbVisible = !isFocus && fb.style.display !== 'none';
+  if (!dueDate) { el.innerHTML = ''; el.style.display = 'none'; row.style.display = fbVisible ? '' : 'none'; return; }
   const now = new Date();
   const due = new Date(dueDate);
   let cls = 'upcoming';
@@ -912,9 +920,8 @@ function renderStickyDue(dueDate) {
   // Respect settings
   const show = settings._showDue !== false;
   const showFocus = settings._showDueFocus;
-  const isFocus = document.body.classList.contains('focus');
   el.style.display = (show && (!isFocus || showFocus)) ? '' : 'none';
-  row.style.display = (el.style.display !== 'none' || fb.style.display !== 'none') ? '' : 'none';
+  row.style.display = (el.style.display !== 'none' || fbVisible) ? '' : 'none';
 }
 
 // ===== Focus mode toggle =====
@@ -926,11 +933,21 @@ document.getElementById('btnFocus').onclick = e => {
   // Sync pomo-active class
   document.body.classList.toggle('pomo-active', psStrip.classList.contains('open'));
   document.getElementById('btnFocus').classList.toggle('on', focused);
+  // Move subtask toggle to bar in focus mode, back to content otherwise
+  const toggle = document.getElementById('btnSubToggle');
+  const btnFocusEl = document.getElementById('btnFocus');
+  const barR = btnFocusEl.parentElement;
+  const stSubtasks = document.getElementById('stSubtasks');
+  if (focused) {
+    barR.insertBefore(toggle, btnFocusEl);
+  } else {
+    stSubtasks.after(toggle);
+  }
   if (D) {
     renderStickyDue(D.dueDate);
     applyFocusSubtaskState();
   }
-  scheduleResize();
+  setTimeout(() => scheduleResize(), 0);
 };
 </script>
 </body>
